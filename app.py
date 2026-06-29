@@ -4,6 +4,11 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
+from prediksi_sampah_surakarta import (
+    data_raw, preprocess, split_and_scale, tune, train,
+    hitung_metrik, importance, forecast_2026, SPLIT_IDX
+)
+
 # Config optimasi memory
 st.set_page_config(
     page_title="Prediksi Volume Sampah di Kota Surakarta Menggunakan Random Forest Regression Berbasis Faktor Kependudukan",
