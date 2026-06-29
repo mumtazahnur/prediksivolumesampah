@@ -20,7 +20,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir -r /var/www/html/requirements.txt
 
 # 5. Jalankan port substitution secara dinamis di runtime menggunakan port Railway, kemudian jalankan Apache
-RUN sed -i 's/Listen 80/Listen ${PORT}/g' /etc/apache2/ports.conf \
-    && sed -i 's/<VirtualHost \*:80>/<VirtualHost *:${PORT}>/g' /etc/apache2/sites-available/000-default.conf
+# ... (Baris 1 sampai 4 untuk instalasi python & copy file biarkan tetap sama)
+
+# 5. Ubah port Apache secara permanen ke 8080 sesuai input dashboard Railway
+RUN sed -i 's/Listen 80/Listen 8080/g' /etc/apache2/ports.conf \
+    && sed -i 's/<VirtualHost \*:80>/<VirtualHost \*:8080>/g' /etc/apache2/sites-available/000-default.conf
 
 CMD ["apache2-foreground"]
