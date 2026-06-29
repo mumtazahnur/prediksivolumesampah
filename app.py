@@ -85,21 +85,30 @@ with st.expander("DATASET", expanded=True):
 
     st.divider()
     st.subheader("Heatmap volume sampah per tahun & bulan")
-    pivot = df.pivot_table(values=vol_col, index="Tahun", columns="Bulan", aggfunc="mean")
+    # Pastikan Bulan adalah integer
+    df_heatmap = df.copy()
+    df_heatmap["Bulan"] = df_heatmap["Bulan"].astype(int)
+    df_heatmap["Tahun"] = df_heatmap["Tahun"].astype(int)
+    
+    pivot = df_heatmap.pivot_table(values=vol_col, index="Tahun", columns="Bulan", aggfunc="mean")
     pivot = pivot.dropna(how='all')  # Hapus row kosong
-    # Urutkan bulan dari Januari (1) sampai Desember (12)
-    pivot = pivot[[col for col in range(1, 13) if col in pivot.columns]]
-    fig_heat = px.imshow(
-        pivot,
-        color_continuous_scale="YlOrRd",
-        labels={"color": "Ton"},
-        text_auto=".0f",
-        aspect="auto",
-    )
-    fig_heat.update_yaxes(dtick=1)
-    fig_heat.update_xaxes(ticktext=bulan_nama, tickvals=list(range(1, 13)))
-    fig_heat.update_layout(height=400)  # Batasi tinggi
-    st.plotly_chart(fig_heat, use_container_width=True)
+    
+    # Urutkan bulan dari Januari (1) sampai Desember (12) dan pastikan ada
+    if len(pivot) > 0:
+        pivot = pivot.reindex(columns=[col for col in range(1, 13) if col in pivot.columns])
+        fig_heat = px.imshow(
+            pivot,
+            color_continuous_scale="YlOrRd",
+            labels={"color": "Ton"},
+            text_auto=".0f",
+            aspect="auto",
+        )
+        fig_heat.update_yaxes(dtick=1)
+        fig_heat.update_xaxes(ticktext=bulan_nama, tickvals=list(range(1, 13)))
+        fig_heat.update_layout(height=400)
+        st.plotly_chart(fig_heat, use_container_width=True)
+    else:
+        st.warning("Tidak ada data untuk ditampilkan di heatmap")
 
     st.divider()
     st.subheader("Pola musiman volume sampah")
