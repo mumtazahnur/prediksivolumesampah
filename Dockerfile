@@ -1,7 +1,9 @@
 FROM php:8.2-apache
 
 # 1. Matikan mpm_event dan hidupkan mpm_prefork di awal untuk mencegah error AH00534
-RUN a2dismod mpm_event || true && a2enmod mpm_prefork || true
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
+    && rm -f /etc/apache2/mods-available/mpm_event.load \
+    && a2enmod mpm_prefork || true
 
 # 2. Install python3, venv, dan pip
 RUN apt-get update && apt-get install -y \
