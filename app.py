@@ -52,11 +52,17 @@ with st.expander("DATASET", expanded=True):
     st.subheader("Dataset volume sampah")
     st.caption("Data volume sampah dan variabel pendukung Kota Surakarta, 2016–2025.")
 
-    col1, col2 = st.columns([1, 3])
+    tahun_list = sorted(df["Tahun"].dropna().unique().astype(int).tolist())
+    col1, col2 = st.columns([2, 1])
     with col1:
-        tahun_list = sorted(df["Tahun"].dropna().unique().astype(int).tolist())
-        tahun_filter = st.multiselect("Filter tahun", tahun_list, default=tahun_list)
-
+        tahun_range = st.slider(
+            "Filter tahun", 
+            min_value=tahun_list[0], 
+            max_value=tahun_list[-1],
+            value=(tahun_list[0], tahun_list[-1]),
+            step=1
+        )
+    tahun_filter = [t for t in tahun_list if tahun_range[0] <= t <= tahun_range[1]]
     df_filtered = df[df["Tahun"].isin(tahun_filter)]
 
     st.subheader("Statistik")
