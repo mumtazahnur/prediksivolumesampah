@@ -10,17 +10,10 @@ from prediksi_sampah_surakarta import (
 )
 
 st.set_page_config(
-    page_title="Prediksi Sampah Surakarta",
+    page_title="Prediksi Volume Sampah di Kota Surakarta Menggunakan Random Forest Regression Berbasis Faktor Kependudukan",
     page_icon="",
     layout="wide",
 )
-
-st.sidebar.markdown("#♻️ Sampah Solo")
-st.sidebar.caption("Prediksi Volume Sampah Kota Surakarta")
-st.sidebar.markdown("Kelompok 1 · Informatika UNS")
-st.sidebar.divider()
-st.sidebar.caption("Model: Random Forest Regression")
-st.sidebar.caption("Data: Jan 2016 – Des 2025 · 120 observasi")
 
 bulan_nama = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agt","Sep","Okt","Nov","Des"]
 
@@ -28,6 +21,7 @@ bulan_nama = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agt","Sep","Okt","Nov",
 def load_data():
     df = pd.read_csv("dataset_sampah - DATASET FIX.csv")
     df.columns = [c.replace("\n", " ").strip() for c in df.columns]
+    df['Tahun'] = df['Tahun'].ffill()
     return df
 
 @st.cache_resource
@@ -54,7 +48,7 @@ st.markdown(
 st.divider()
 
 # ── Dataset ──
-with st.expander("📋 Dataset dan Eksplorasi", expanded=True):
+with st.expander("DATASET", expanded=True):
     df = load_data()
     st.subheader("Dataset volume sampah")
     st.caption("Data volume sampah dan variabel pendukung Kota Surakarta, 2016–2025.")
@@ -66,7 +60,7 @@ with st.expander("📋 Dataset dan Eksplorasi", expanded=True):
 
     df_filtered = df[df["Tahun"].isin(tahun_filter)]
 
-    st.subheader("Statistik deskriptif")
+    st.subheader("Statistik")
     col1, col2, col3, col4 = st.columns(4)
     vol_col = [c for c in df.columns if "Volume" in c][0]
     col1.metric("Rata-rata", f"{df_filtered[vol_col].mean():,.0f} ton")
@@ -75,7 +69,7 @@ with st.expander("📋 Dataset dan Eksplorasi", expanded=True):
     col4.metric("Std. deviasi", f"{df_filtered[vol_col].std():,.0f} ton")
 
     st.divider()
-    st.subheader("Tabel data lengkap")
+    st.subheader("Tabel data")
     st.dataframe(df_filtered, width='stretch', height=300)
 
     st.divider()
@@ -88,6 +82,7 @@ with st.expander("📋 Dataset dan Eksplorasi", expanded=True):
         text_auto=".0f",
         aspect="auto",
     )
+    fig_heat.update_yaxes(dtick=1)
     st.plotly_chart(fig_heat, use_container_width=True)
 
     st.divider()
@@ -124,7 +119,7 @@ with st.expander("📋 Dataset dan Eksplorasi", expanded=True):
 st.divider()
 
 # ── Model & Prediksi Utama ──
-with st.expander("📈 Analisis dan Prediksi", expanded=True):
+with st.expander("Hasil Analisis dan Prediksi", expanded=True):
     df_model, model, cv_r2, y_train, y_test, pred_train, pred_test, m_train, m_test, imp_df, pred_df, scaler_X, scaler_y = load_model()
 
     st.subheader("Performa model")
@@ -152,8 +147,12 @@ with st.expander("📈 Analisis dan Prediksi", expanded=True):
         annotation_text="Batas train/test", annotation_position="top right")
     fig_main.add_vline(x="2022-01-01", line_dash="dash", line_color="#BA7517",
         annotation_text="Lonjakan 2022+", annotation_position="top left")
-    fig_main.update_layout(yaxis_title="Volume sampah (ton)",
-        legend=dict(orientation="h", y=1.1), margin=dict(l=0, r=0, t=10, b=0))
+    fig_main.update_layout(
+        yaxis_title="Volume sampah (ton)",
+        legend=dict(orientation="h", y=1.1),
+        margin=dict(l=0, r=0, t=10, b=0),
+        xaxis=dict(dtick="M12", tickformat="%Y"),
+    )
     st.plotly_chart(fig_main, use_container_width=True)
 
     st.divider()
@@ -233,7 +232,7 @@ with st.expander("📈 Analisis dan Prediksi", expanded=True):
 st.divider()
 
 # ── Input Prediksi ──
-with st.expander("🎯 Input tahun prediksi", expanded=True):
+with st.expander("Input tahun prediksi", expanded=True):
     st.subheader("Input prediksi tahunan")
     st.caption(
         "Pilih tahun yang ingin diprediksi. Model akan mengekstrapolasi variabel tahunan "
@@ -259,20 +258,18 @@ with st.expander("🎯 Input tahun prediksi", expanded=True):
             f"Makin jauh dari 2025, makin besar ketidakpastian prediksi "
             f"karena ekstrapolasi variabel tahunan semakin panjang."
         )
-        run_btn = st.button("🔮 Jalankan prediksi", type="primary", use_container_width=True)
+        run_btn = st.button("Jalankan prediksi", type="primary", use_container_width=True)
 
     with col2:
         if tahun_pred > 2028:
             st.warning(
                 f"Prediksi untuk tahun {tahun_pred} mengekstrapolasi data lebih dari "
-                f"3 tahun ke depan dari data terakhir (2025). Hasilnya bersifat indikatif.",
-                icon="⚠️"
+                f"3 tahun ke depan dari data terakhir (2025). Hasilnya bersifat indikatif."
             )
         else:
             st.info(
                 f"Model akan menggunakan ekstrapolasi linear dari data 2016–2025 "
-                f"untuk memperkirakan variabel di tahun {tahun_pred}.",
-                icon="ℹ️"
+                f"untuk memperkirakan variabel di tahun {tahun_pred}."
             )
 
     if run_btn:
@@ -356,6 +353,6 @@ with st.expander("🎯 Input tahun prediksi", expanded=True):
 
         csv = pred_df[["Bulan_Nama","Prediksi_Volume"]].to_csv(index=False).encode()
         st.download_button(
-            f"⬇️ Download prediksi {tahun_pred} (.csv)",
+            f"Download prediksi {tahun_pred} (.csv)",
             csv, f"prediksi_{tahun_pred}.csv", "text/csv"
         )
