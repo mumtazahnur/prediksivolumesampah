@@ -60,7 +60,8 @@ with st.expander("DATASET", expanded=True):
             min_value=tahun_list[0], 
             max_value=tahun_list[-1],
             value=(tahun_list[0], tahun_list[-1]),
-            step=1
+            step=1,
+            key="tahun_filter_slider"
         )
     tahun_filter = [t for t in tahun_list if tahun_range[0] <= t <= tahun_range[1]]
     df_filtered = df[df["Tahun"].isin(tahun_filter)]
@@ -81,6 +82,8 @@ with st.expander("DATASET", expanded=True):
     st.subheader("Heatmap volume sampah per tahun & bulan")
     pivot = df.pivot_table(values=vol_col, index="Tahun", columns="Bulan", aggfunc="mean")
     pivot = pivot.dropna(how='all')  # Hapus row kosong
+    # Urutkan bulan dari Januari (1) sampai Desember (12)
+    pivot = pivot[[col for col in range(1, 13) if col in pivot.columns]]
     fig_heat = px.imshow(
         pivot,
         color_continuous_scale="YlOrRd",
@@ -89,6 +92,7 @@ with st.expander("DATASET", expanded=True):
         aspect="auto",
     )
     fig_heat.update_yaxes(dtick=1)
+    fig_heat.update_xaxes(ticktext=bulan_nama, tickvals=list(range(1, 13)))
     fig_heat.update_layout(height=400)  # Batasi tinggi
     st.plotly_chart(fig_heat, use_container_width=True)
 
