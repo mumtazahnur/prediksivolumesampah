@@ -98,12 +98,6 @@ with st.expander("DATASET", expanded=True):
     st.subheader("Heatmap volume sampah per tahun & bulan")
     
     try:
-        # Debug: lihat struktur data
-        with st.expander("Debug info (buka jika ada error)", expanded=False):
-            st.write("Columns:", df.columns.tolist())
-            st.write("Data types:", df.dtypes)
-            st.write("Shape:", df.shape)
-            st.write("Sample data:", df.head(3))
         
         # Gunakan df langsung, pastikan Bulan & Tahun numeric
         df_heat = df.copy()
