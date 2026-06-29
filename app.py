@@ -4,27 +4,26 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
-from prediksi_sampah_surakarta import (
-    data_raw, preprocess, split_and_scale, tune, train,
-    hitung_metrik, importance, forecast_2026, SPLIT_IDX
-)
-
+# Config optimasi memory
 st.set_page_config(
     page_title="Prediksi Volume Sampah di Kota Surakarta Menggunakan Random Forest Regression Berbasis Faktor Kependudukan",
     page_icon="",
     layout="wide",
 )
 
+# Kurangi cache memory
+st.session_state.setdefault("cache_cleared", False)
+
 bulan_nama = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agt","Sep","Okt","Nov","Des"]
 
-@st.cache_data
+@st.cache_data(ttl=3600)
 def load_data():
     df = pd.read_csv("dataset_sampah - DATASET FIX.csv")
     df.columns = [c.replace("\n", " ").strip() for c in df.columns]
     df['Tahun'] = df['Tahun'].ffill()
     return df
 
-@st.cache_resource
+@st.cache_resource(ttl=3600)
 def load_model():
     df = preprocess(data_raw)
     out = split_and_scale(df)
@@ -70,11 +69,12 @@ with st.expander("DATASET", expanded=True):
 
     st.divider()
     st.subheader("Tabel data")
-    st.dataframe(df_filtered, width='stretch', height=300)
+    st.dataframe(df_filtered.head(100), width='stretch', height=300)
 
     st.divider()
     st.subheader("Heatmap volume sampah per tahun & bulan")
     pivot = df.pivot_table(values=vol_col, index="Tahun", columns="Bulan", aggfunc="mean")
+    pivot = pivot.dropna(how='all')  # Hapus row kosong
     fig_heat = px.imshow(
         pivot,
         color_continuous_scale="YlOrRd",
@@ -83,6 +83,7 @@ with st.expander("DATASET", expanded=True):
         aspect="auto",
     )
     fig_heat.update_yaxes(dtick=1)
+    fig_heat.update_layout(height=400)  # Batasi tinggi
     st.plotly_chart(fig_heat, use_container_width=True)
 
     st.divider()

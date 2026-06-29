@@ -21,7 +21,7 @@ OUTPUT_DIR = 'C:\\Users\\Hp\\Documents\\KECERDASAN BUATAN' #ganti sesuai dengan 
 
 SPLIT_IDX   = 84         
 RANDOM_SEED = 42
-N_SPLITS_CV = 5           
+N_SPLITS_CV = 3           # Dikurangi dari 5 untuk menghemat memory           
 
 #Dataset
 data_raw = {
@@ -229,11 +229,11 @@ def tune(X_train_s, y_train_s):
     tscv = TimeSeriesSplit(n_splits=N_SPLITS_CV)
 
     param_grid = {
-        'n_estimators':      [100, 200, 300],
-        'max_depth':         [None, 10, 20],
-        'min_samples_split': [2, 5],
-        'min_samples_leaf':  [1, 2],
-        'max_features':      ['sqrt', None],
+        'n_estimators':      [100, 200],      # Dikurangi dari [100, 200, 300]
+        'max_depth':         [10, 20],        # Dikurangi dari [None, 10, 20]
+        'min_samples_split': [5],             # Dikurangi dari [2, 5]
+        'min_samples_leaf':  [2],             # Dikurangi dari [1, 2]
+        'max_features':      ['sqrt'],        # Dikurangi dari ['sqrt', None]
     }
 
     gs = GridSearchCV(
