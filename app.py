@@ -21,11 +21,22 @@ st.session_state.setdefault("cache_cleared", False)
 
 bulan_nama = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agt","Sep","Okt","Nov","Des"]
 
+BULAN_MAP = {
+    "januari": 1, "februari": 2, "maret": 3, "april": 4,
+    "mei": 5, "juni": 6, "juli": 7, "agustus": 8,
+    "september": 9, "oktober": 10, "november": 11, "desember": 12,
+}
+
 @st.cache_data(ttl=3600)
 def load_data():
     df = pd.read_csv("dataset_sampah - DATASET FIX.csv")
     df.columns = [c.replace("\n", " ").strip() for c in df.columns]
     df['Tahun'] = df['Tahun'].ffill()
+
+    # Kolom "Bulan" di CSV berisi nama bulan dalam teks (mis. "Januari"),
+    # bukan angka. Konversi ke angka 1-12 supaya heatmap & groupby musiman benar.
+    df['Bulan'] = df['Bulan'].str.strip().str.lower().map(BULAN_MAP)
+
     return df
 
 @st.cache_resource(ttl=3600)
@@ -85,34 +96,50 @@ with st.expander("DATASET", expanded=True):
 
     st.divider()
     st.subheader("Heatmap volume sampah per tahun & bulan")
-    # Pastikan Bulan & Tahun adalah numeric
-    df_heatmap = df.copy()
-    df_heatmap["Bulan"] = pd.to_numeric(df_heatmap["Bulan"], errors='coerce')
-    df_heatmap["Tahun"] = pd.to_numeric(df_heatmap["Tahun"], errors='coerce')
-    df_heatmap = df_heatmap.dropna(subset=["Bulan", "Tahun"])  # Hapus row dengan NaN
     
-    if len(df_heatmap) > 0:
-        pivot = df_heatmap.pivot_table(values=vol_col, index="Tahun", columns="Bulan", aggfunc="mean")
-        pivot = pivot.dropna(how='all')  # Hapus row kosong
+    try:
+        # Debug: lihat struktur data
+        with st.expander("Debug info (buka jika ada error)", expanded=False):
+            st.write("Columns:", df.columns.tolist())
+            st.write("Data types:", df.dtypes)
+            st.write("Shape:", df.shape)
+            st.write("Sample data:", df.head(3))
         
-        # Urutkan bulan dari Januari (1) sampai Desember (12)
-        if len(pivot) > 0:
-            pivot = pivot.reindex(columns=[col for col in range(1, 13) if col in pivot.columns])
-            fig_heat = px.imshow(
-                pivot,
-                color_continuous_scale="YlOrRd",
-                labels={"color": "Ton"},
-                text_auto=".0f",
-                aspect="auto",
+        # Gunakan df langsung, pastikan Bulan & Tahun numeric
+        df_heat = df.copy()
+        df_heat["Bulan"] = pd.to_numeric(df_heat["Bulan"], errors='coerce')
+        df_heat["Tahun"] = pd.to_numeric(df_heat["Tahun"], errors='coerce')
+        df_heat = df_heat.dropna(subset=["Bulan", "Tahun", vol_col])
+        
+        if len(df_heat) > 0:
+            pivot = df_heat.pivot_table(
+                values=vol_col, 
+                index="Tahun", 
+                columns="Bulan", 
+                aggfunc="mean"
             )
-            fig_heat.update_yaxes(dtick=1)
-            fig_heat.update_xaxes(ticktext=bulan_nama, tickvals=list(range(1, 13)))
-            fig_heat.update_layout(height=400)
-            st.plotly_chart(fig_heat, use_container_width=True)
+            
+            if not pivot.empty:
+                # Reindex kolom 1-12
+                pivot = pivot[[col for col in range(1, 13) if col in pivot.columns]]
+                
+                fig_heat = px.imshow(
+                    pivot,
+                    color_continuous_scale="YlOrRd",
+                    labels={"color": "Ton"},
+                    text_auto=".0f",
+                    aspect="auto",
+                )
+                fig_heat.update_yaxes(dtick=1)
+                fig_heat.update_xaxes(ticktext=bulan_nama, tickvals=list(range(1, 13)))
+                fig_heat.update_layout(height=400)
+                st.plotly_chart(fig_heat, use_container_width=True)
+            else:
+                st.error("Pivot table kosong - cek data Bulan dan Tahun")
         else:
-            st.warning("Tidak ada data untuk ditampilkan di heatmap")
-    else:
-        st.warning("Data tidak valid untuk heatmap")
+            st.error(f"Data tidak valid: {len(df_heat)} rows setelah cleaning")
+    except Exception as e:
+        st.error(f"Error heatmap: {str(e)}")
 
     st.divider()
     st.subheader("Pola musiman volume sampah")
