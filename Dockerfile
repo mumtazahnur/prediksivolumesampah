@@ -20,4 +20,4 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir -r /var/www/html/requirements.txt
 
 # 5. Jalankan port substitution secara dinamis di runtime menggunakan port Railway, kemudian jalankan Apache
-CMD sed -i "s/80/\${PORT}/g" /etc/apache2/sites-available/000-default.conf /etc/apache2/ports.conf && apache2-foreground
+CMD ["apache2-foreground"]
