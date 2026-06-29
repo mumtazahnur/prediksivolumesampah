@@ -116,11 +116,11 @@
 </div>
 </div>
 <nav class="flex-1 mt-4 space-y-1">
-<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all" href="#">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all" href="index.php">
 <span class="material-symbols-outlined">dashboard</span>
 <span class="font-label-md">Overview</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all" href="#">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all" href="datasets.php">
 <span class="material-symbols-outlined">database</span>
 <span class="font-label-md">Datasets</span>
 </a>
@@ -156,8 +156,8 @@
 <div class="flex items-center gap-8">
 <span class="font-headline-md text-headline-md font-bold text-primary block md:hidden">WastePredict</span>
 <nav class="hidden lg:flex items-center gap-6">
-<a class="text-on-surface-variant hover:text-primary transition-colors font-label-md" href="#">Dashboard</a>
-<a class="text-on-surface-variant hover:text-primary transition-colors font-label-md" href="#">Datasets</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-md" href="index.php">Dashboard</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-md" href="datasets.php">Datasets</a>
 <a class="text-primary border-b-2 border-primary pb-1 font-label-md" href="predictionPage.php">Predictions</a>
 <a class="text-on-surface-variant hover:text-primary transition-colors font-label-md" href="inputPage.php">Input Tool</a>
 </nav>

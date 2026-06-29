@@ -121,7 +121,7 @@
 <aside class="fixed left-0 top-0 h-full w-[280px] bg-surface-container flex flex-col p-4 gap-2 hidden md:flex">
 <div class="flex items-center gap-3 px-2 mb-8">
 <div class="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center text-on-primary-container">
-<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">eco</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">recycling</span>
 </div>
 <div>
 <h1 class="font-headline-sm text-headline-sm font-black text-primary">WastePredict</h1>
@@ -129,10 +129,10 @@
 </div>
 </div>
 <nav class="flex-1 flex flex-col gap-1">
-<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all font-label-md" href="#">
+<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all font-label-md" href="index.php">
 <span class="material-symbols-outlined">dashboard</span> Overview
             </a>
-<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all font-label-md" href="#">
+<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all font-label-md" href="datasets.php">
 <span class="material-symbols-outlined">database</span> Datasets
             </a>
 <a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all font-label-md" href="predictionPage.php">
@@ -162,8 +162,8 @@
 <div class="flex items-center gap-8">
 <span class="font-headline-md text-headline-md font-bold text-primary md:hidden">WP</span>
 <nav class="hidden lg:flex items-center gap-6">
-<a class="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Dashboard</a>
-<a class="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Datasets</a>
+<a class="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="index.php">Dashboard</a>
+<a class="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="datasets.php">Datasets</a>
 <a class="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="predictionPage.php">Predictions</a>
 <a class="font-label-md text-primary border-b-2 border-primary pb-1" href="inputPage.php">Input Tool</a>
 </nav>
@@ -231,7 +231,7 @@
 <p class="font-label-sm text-on-surface-variant uppercase tracking-widest">Estimated Volume</p>
 <div class="flex items-baseline gap-2 mt-1">
 <span class="font-display-lg text-display-lg text-primary" id="display-volume">1,240</span>
-<span class="font-headline-md text-on-surface-variant">K Tons</span>
+<span class="font-headline-md text-on-surface-variant">Tons</span>
 </div>
 </div>
 <div class="flex flex-col justify-center">
@@ -239,7 +239,7 @@
 <span class="material-symbols-outlined" id="trend-icon">trending_up</span>
 <span class="font-headline-md" id="display-percentage">+12.5%</span>
 </div>
-<p class="font-label-md text-on-surface-variant">vs current year (2024)</p>
+<p class="font-label-md text-on-surface-variant">vs baseline year (2025)</p>
 </div>
 </div>
 <!-- Mini Chart Representation -->
@@ -252,11 +252,11 @@
 <div class="bg-primary w-full rounded-t transition-all duration-1000" id="current-bar" style="height: 0%"></div>
 </div>
 <div class="flex justify-between mt-2 text-[10px] font-bold text-on-surface-variant uppercase">
-<span>2024</span>
-<span>2026</span>
-<span>2028</span>
-<span>2029</span>
-<span class="text-primary" id="display-year-label">2030</span>
+<span>2016</span>
+<span>2019</span>
+<span>2022</span>
+<span>2025</span>
+<span class="text-primary" id="display-year-label">2026</span>
 </div>
 </div>
 <div class="mt-8 flex gap-4 relative z-10">
@@ -311,47 +311,70 @@
 </footer>
 </main>
 <script>
+        // Mendengarkan event 'submit' pada form input tahun prediksi
         document.getElementById('prediction-form').addEventListener('submit', function(e) {
-            e.preventDefault();
+            e.preventDefault(); // Mencegah reload halaman secara default
+            
+            // Mengambil nilai tahun target yang diinput oleh user
             const year = document.getElementById('year-input').value;
-            const currentYear = 2024;
-            const diff = year - currentYear;
             
-            // Artificial Logic for Simulation
-            const baseVolume = 980;
-            const growthRate = 0.025; // 2.5% per year
-            const estimatedVolume = Math.round(baseVolume * Math.pow(1 + growthRate, diff));
-            const percentageIncrease = ((estimatedVolume - baseVolume) / baseVolume * 100).toFixed(1);
+            // Mengaktifkan efek loading pada tombol submit form
+            const runBtn = e.target.querySelector('button[type="submit"]');
+            const originalBtnHtml = runBtn.innerHTML;
+            runBtn.disabled = true; // Menonaktifkan tombol sementara
+            runBtn.innerHTML = '<span class="material-symbols-outlined animate-spin" style="font-variation-settings: \'opsz\' 20;">sync</span> Running...';
 
-            // UI Transitions
-            document.getElementById('results-placeholder').classList.add('hidden');
-            const resultsCard = document.getElementById('results-card');
-            resultsCard.classList.remove('hidden');
-            
-            // Set Data
-            document.getElementById('display-year').innerText = year;
-            document.getElementById('display-year-label').innerText = year;
-            document.getElementById('display-volume').innerText = estimatedVolume.toLocaleString();
-            
-            const trendIcon = document.getElementById('trend-icon');
-            const trendContainer = document.getElementById('trend-container');
-            const percentageText = document.getElementById('display-percentage');
+            // Memanggil API predict.php secara asynchronous menggunakan fetch
+            fetch('predict.php?year=' + year)
+                .then(response => response.json()) // Mengonversi respon server menjadi object JSON
+                .then(data => {
+                    // Mengembalikan tombol submit ke keadaan semula setelah respon diterima
+                    runBtn.disabled = false;
+                    runBtn.innerHTML = originalBtnHtml;
 
-            if(diff >= 0) {
-                percentageText.innerText = `+${percentageIncrease}%`;
-                trendContainer.className = "flex items-center gap-2 text-error";
-                trendIcon.innerText = "trending_up";
-            } else {
-                percentageText.innerText = `${percentageIncrease}%`;
-                trendContainer.className = "flex items-center gap-2 text-primary";
-                trendIcon.innerText = "trending_down";
-            }
+                    if (data.status === 'success') {
+                        // Menyembunyikan card placeholder kosong dan menampilkan card hasil simulasi
+                        document.getElementById('results-placeholder').classList.add('hidden');
+                        const resultsCard = document.getElementById('results-card');
+                        resultsCard.classList.remove('hidden');
+                        
+                        // Merender hasil prediksi ke elemen HTML (Tahun Target dan Total Volume Tahunan)
+                        document.getElementById('display-year').innerText = data.target_year;
+                        document.getElementById('display-year-label').innerText = data.target_year;
+                        document.getElementById('display-volume').innerText = Math.round(data.total_annual).toLocaleString('id-ID');
+                        
+                        const trendIcon = document.getElementById('trend-icon');
+                        const trendContainer = document.getElementById('trend-container');
+                        const percentageText = document.getElementById('display-percentage');
 
-            // Animate bar chart
-            setTimeout(() => {
-                const heightValue = Math.min(Math.max(30, (estimatedVolume / 2000) * 100), 100);
-                document.getElementById('current-bar').style.height = heightValue + '%';
-            }, 100);
+                        // Menghitung & merender trend persentase kenaikan/penurunan dibanding tahun 2025
+                        const growth = data.growth_rate_vs_2025;
+                        if (growth >= 0) {
+                            percentageText.innerText = `+${growth}%`;
+                            trendContainer.className = "flex items-center gap-2 text-error"; // Warna merah jika naik
+                            trendIcon.innerText = "trending_up";
+                        } else {
+                            percentageText.innerText = `${growth}%`;
+                            trendContainer.className = "flex items-center gap-2 text-primary"; // Warna hijau jika turun
+                            trendIcon.innerText = "trending_down";
+                        }
+
+                        // Menjalankan animasi tinggi grafik batang (bar chart) berdasarkan rasio volume dibanding tahun 2025
+                        setTimeout(() => {
+                            const ratio = Math.min(Math.max(30, (data.total_annual / data.total_2025_actual) * 65), 100);
+                            document.getElementById('current-bar').style.height = ratio + '%';
+                        }, 100);
+                    } else {
+                        // Menampilkan alert jika API predict.php mengembalikan error status
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    // Penanganan jika koneksi ke server gagal
+                    runBtn.disabled = false;
+                    runBtn.innerHTML = originalBtnHtml;
+                    alert('Gagal menghubungi engine prediksi: ' + err.message);
+                });
         });
 
         // Initialize mobile menu or other micro-interactions if needed
