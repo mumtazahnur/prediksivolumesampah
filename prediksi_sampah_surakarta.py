@@ -74,7 +74,7 @@ warnings.filterwarnings('ignore')
 # 0. KONFIGURASI OUTPUT
 # ══════════════════════════════════════════════════════════════
 
-OUTPUT_DIR = 'C:\\Users\\Hp\\Documents\\KECERDASAN BUATAN'
+OUTPUT_DIR = 'C:\\vscode\\D_AI_Kelompok1_VolumeSampah'
 
 SPLIT_IDX   = 84          # train Jan 2017 – Des 2023 (setelah drop 2016 akibat lag_12)
 RANDOM_SEED = 42
