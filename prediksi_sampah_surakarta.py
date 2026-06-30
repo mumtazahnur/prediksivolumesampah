@@ -1,3 +1,55 @@
+"""
+=============================================================
+  Prediksi Volume Sampah Kota Surakarta
+  Metode  : Random Forest Regression
+  Dataset : Januari 2016 – Desember 2025 (120 observasi)
+  Kelompok 1 — Informatika, Universitas Sebelas Maret
+=============================================================
+
+FITUR YANG DIGUNAKAN (11 total):
+  Kependudukan & Kontekstual (8):
+    X1 Jumlah_Penduduk       — tahunan, konstan per tahun
+    X2 Kepadatan_Penduduk    — tahunan, konstan per tahun
+    X3 Jumlah_Rumah_Tangga   — semesteran, konstan per semester
+    X4 Jumlah_Rumah_Makan    — tahunan, konstan per tahun
+    X5 Tingkat_Hunian_Hotel  — bulanan
+    X6 Jumlah_Wisatawan      — tahunan, konstan per tahun
+    X7 Curah_Hujan           — bulanan (missing → mean imputation)
+    X8 Jumlah_Hari_Besar     — bulanan
+
+  Fitur Kalender / Musiman (2):
+    Bulan_Sin, Bulan_Cos     — Fourier encoding siklus bulanan
+                               agar model tahu Desember ≈ Januari
+
+  Fitur Kontekstual Tambahan (1):
+    lag_12                   — volume sampah bulan yang sama tahun
+                               sebelumnya, untuk menangkap pola
+                               repetitif tahunan timbulan sampah.
+
+CATATAN DATA:
+  - Desember 2022 (19.158,19 ton) dipertahankan sesuai data resmi
+    DLH Kota Surakarta dan dicatat sebagai anomali.
+  - Curah hujan 2025 seluruhnya NaN → mean imputation.
+  - Jumlah Wisatawan 2016 dibagi 12 (366.296/bulan).
+  - lag_12 menyebabkan Jan–Des 2016 di-drop (tidak ada referensi
+    tahun sebelumnya). Dataset efektif: 108 observasi (Jan 2017–Des 2025).
+
+SPLIT & EVALUASI:
+  - Train : Jan 2017 – Des 2023 (84 observasi, ~78%)
+  - Test  : Jan 2024 – Des 2025 (24 observasi, ~22%)
+  - Split dilakukan secara berurutan (temporal).
+  - Evaluasi utama: 5-fold TimeSeriesSplit CV pada data train.
+  - Evaluasi final: metrik pada test set (hold-out).
+
+FORECASTING 2026:
+  - Variabel tahunan (X1,X2,X4,X6): linear extrapolation 2016–2025.
+  - Variabel semesteran (X3): linear extrapolation per semester.
+  - Variabel bulanan (X5,X7,X8): rata-rata per bulan historis.
+  - lag_12: diambil langsung dari data aktual Jan–Des 2025.
+  - Fitur kalender dihitung otomatis.
+=============================================================
+"""
+
 import warnings
 import numpy as np
 import pandas as pd
@@ -5,6 +57,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib.gridspec as gridspec
 import seaborn as sns
+
 from sklearn.ensemble      import RandomForestRegressor
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import (
@@ -17,19 +70,29 @@ from sklearn.inspection import permutation_importance
 
 warnings.filterwarnings('ignore')
 
-OUTPUT_DIR = 'C:\\Users\\Hp\\Documents\\KECERDASAN BUATAN' #ganti sesuai dengan path masing-masing
+# ══════════════════════════════════════════════════════════════
+# 0. KONFIGURASI OUTPUT
+# ══════════════════════════════════════════════════════════════
 
-SPLIT_IDX   = 84         
+OUTPUT_DIR = 'C:\\Users\\Hp\\Documents\\KECERDASAN BUATAN'
+
+SPLIT_IDX   = 84          # train Jan 2017 – Des 2023 (setelah drop 2016 akibat lag_12)
 RANDOM_SEED = 42
-N_SPLITS_CV = 3           # Dikurangi dari 5 untuk menghemat memory           
+N_SPLITS_CV = 5           # TimeSeriesSplit folds
 
-#Dataset
+# ══════════════════════════════════════════════════════════════
+# 1. DATA MENTAH (120 observasi, Jan 2016 – Des 2025)
+# ══════════════════════════════════════════════════════════════
+
 data_raw = {
     'Tahun': [*[2016]*12, *[2017]*12, *[2018]*12, *[2019]*12,
               *[2020]*12, *[2021]*12, *[2022]*12, *[2023]*12,
               *[2024]*12, *[2025]*12],
     'Bulan': list(range(1, 13)) * 10,
 
+    # Y — Volume sampah masuk TPA Putri Cempo (ton/bulan)
+    # Sumber: DLH Kota Surakarta
+    # Catatan: Des 2022 (19.158,19) dipertahankan sesuai data resmi
     'Volume_Sampah': [
         8393.73, 8699.22, 9178.07, 8680.27, 9336.46, 9164.74,
         9082.43, 9260.58, 8871.44, 9555.47, 9409.41, 9650.89,
@@ -53,18 +116,21 @@ data_raw = {
         9413,    9354,    9187,    10242,   10438,   10828,
     ],
 
+    # X1 — Jumlah penduduk (jiwa), BPS, tahunan
     'Jumlah_Penduduk': [
         *[514171]*12, *[516102]*12, *[517887]*12, *[519587]*12,
         *[522364]*12, *[522728]*12, *[523008]*12, *[526870]*12,
         *[528044]*12, *[529079]*12,
     ],
 
+    # X2 — Kepadatan penduduk (jiwa/km²), BPS, tahunan
     'Kepadatan_Penduduk': [
         *[11674.93]*12, *[11718.65]*12, *[11759.31]*12, *[11798]*12,
         *[11861]*12,    *[11188]*12,    *[11194]*12,    *[11277]*12,
         *[11302]*12,    *[11324]*12,
     ],
 
+    # X3 — Jumlah rumah tangga, BPS, semesteran
     'Jumlah_Rumah_Tangga': [
         *[180027]*6, *[180027]*6,
         *[184547]*6, *[178175]*6,
@@ -78,12 +144,14 @@ data_raw = {
         *[201979]*6, *[203284]*6,
     ],
 
+    # X4 — Jumlah rumah makan (unit), BPS, tahunan
     'Jumlah_Rumah_Makan': [
         *[134]*12,  *[678]*12,  *[778]*12,  *[693]*12,
         *[727]*12,  *[716]*12,  *[1148]*12, *[724]*12,
         *[548]*12,  *[811]*12,
     ],
 
+    # X5 — Tingkat hunian hotel (%), BPS, bulanan
     'Tingkat_Hunian_Hotel': [
         38.37, 40.88, 43.95, 45.36, 50.88, 38.82, 53.05, 53.22, 49.01, 47.80, 45.98, 56.77,
         39.38, 41.92, 46.24, 51.49, 49.10, 46.10, 52.19, 51.10, 48.07, 46.61, 55.95, 61.35,
@@ -97,6 +165,10 @@ data_raw = {
         46.72, 39.91, 28.18, 45.35, 43.97, 46.71, 45.45, 43.00, 43.32, 46.44, 43.52, 51.03,
     ],
 
+    # X6 — Jumlah wisatawan (orang), BPS
+    # 2016: data hanya tersedia sebagai agregat tahunan (4.395.550),
+    #        diasumsikan terdistribusi merata → 4.395.550 / 12 = 366.296/bulan
+    # 2017–2025: data bulanan aktual
     'Jumlah_Wisatawan': [
         *[366296]*12,
         232249, 199996, 221351, 240749, 250500, 260191,
@@ -119,6 +191,8 @@ data_raw = {
         474122, 305223, 354270, 415169, 308204, 361386,
     ],
 
+    # X7 — Curah hujan (mm), BMKG, bulanan
+    # Missing value (np.nan) → mean imputation di preprocessing
     'Curah_Hujan': [
          72.0,  164.0,  143.0,   52.0,  104.0,  123.0,
         113.0,   21.0,   79.0,   77.0,  148.0,   91.0,
@@ -142,6 +216,7 @@ data_raw = {
        np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,
     ],
 
+    # X8 — Jumlah hari besar nasional, BPS/Pemerintah, bulanan
     'Jumlah_Hari_Besar': [
         1, 1, 3, 0, 4, 0, 5, 1, 1, 2, 0, 5,
         2, 0, 1, 3, 3, 3, 0, 1, 2, 1, 0, 3,
@@ -156,6 +231,9 @@ data_raw = {
     ],
 }
 
+# ══════════════════════════════════════════════════════════════
+# 2. PREPROCESSING
+# ══════════════════════════════════════════════════════════════
 
 def preprocess(data_raw):
     df = pd.DataFrame(data_raw)
@@ -164,15 +242,22 @@ def preprocess(data_raw):
     )
     df = df.sort_values('Tanggal').reset_index(drop=True)
 
+    # --- Mean imputation untuk missing value (Curah Hujan) ---
     n_missing = df['Curah_Hujan'].isna().sum()
     df['Curah_Hujan'] = df['Curah_Hujan'].fillna(df['Curah_Hujan'].mean())
     print(f"    Missing value Curah_Hujan : {n_missing} nilai → mean imputation "
           f"({df['Curah_Hujan'].mean():.2f} mm)")
 
+    # --- Fitur kalender: Fourier encoding siklus bulanan ---
     df['Bulan_Sin'] = np.sin(2 * np.pi * df['Bulan'] / 12)
     df['Bulan_Cos'] = np.cos(2 * np.pi * df['Bulan'] / 12)
+
+    # --- lag_12: volume bulan yang sama tahun sebelumnya ---
+    # Menangkap pola repetitif tahunan timbulan sampah.
+    # 12 baris pertama (Jan–Des 2016) akan menjadi NaN dan di-drop.
     df['lag_12'] = df['Volume_Sampah'].shift(12)
 
+    # Drop baris NaN akibat lag_12 (Jan–Des 2016)
     df = df.dropna(subset=['lag_12']).reset_index(drop=True)
     print(f"    Dataset efektif: {len(df)} observasi "
           f"(Jan {df['Tahun'].min()} – Des {df['Tahun'].max()}) "
@@ -181,18 +266,22 @@ def preprocess(data_raw):
     return df
 
 
+# ══════════════════════════════════════════════════════════════
+# 3. FEATURE DEFINITION & SCALING
+# ══════════════════════════════════════════════════════════════
+
 FITUR_COLS = [
-    'Jumlah_Penduduk',    
-    'Kepadatan_Penduduk',  
-    'Jumlah_Rumah_Tangga', 
-    'Jumlah_Rumah_Makan',  
-    'Tingkat_Hunian_Hotel',
-    'Jumlah_Wisatawan',   
-    'Curah_Hujan',      
-    'Jumlah_Hari_Besar',  
-    'Bulan_Sin',         
-    'Bulan_Cos',          
-    'lag_12',             
+    'Jumlah_Penduduk',     # X1
+    'Kepadatan_Penduduk',  # X2
+    'Jumlah_Rumah_Tangga', # X3
+    'Jumlah_Rumah_Makan',  # X4
+    'Tingkat_Hunian_Hotel',# X5
+    'Jumlah_Wisatawan',    # X6
+    'Curah_Hujan',         # X7
+    'Jumlah_Hari_Besar',   # X8
+    'Bulan_Sin',           # kalender
+    'Bulan_Cos',           # kalender
+    'lag_12',              # kontekstual: pola repetitif tahunan
 ]
 
 FITUR_LABEL = [
@@ -209,9 +298,11 @@ def split_and_scale(df):
     X = df[FITUR_COLS].values
     y = df[TARGET_COL].values
 
+    # Temporal split: train = 80% pertama, test = 20% terakhir
     X_train, X_test = X[:SPLIT_IDX], X[SPLIT_IDX:]
     y_train, y_test = y[:SPLIT_IDX], y[SPLIT_IDX:]
 
+    # MinMax scaler fit HANYA pada train (cegah data leakage dari test)
     scaler_X = MinMaxScaler()
     scaler_y = MinMaxScaler()
 
@@ -225,15 +316,26 @@ def split_and_scale(df):
             y_train, y_test, X, y, scaler_X, scaler_y)
 
 
+# ══════════════════════════════════════════════════════════════
+# 4. HYPERPARAMETER TUNING (GridSearchCV + TimeSeriesSplit)
+# ══════════════════════════════════════════════════════════════
+
 def tune(X_train_s, y_train_s):
+    """
+    GridSearchCV dengan TimeSeriesSplit sebagai CV strategy.
+    TimeSeriesSplit digunakan (bukan KFold biasa) karena data
+    bersifat deret waktu — fold selalu berurutan maju (expanding
+    window), sehingga tidak ada kebocoran informasi masa depan
+    ke data latih dalam setiap fold.
+    """
     tscv = TimeSeriesSplit(n_splits=N_SPLITS_CV)
 
     param_grid = {
-        'n_estimators':      [100, 200],      # Dikurangi dari [100, 200, 300]
-        'max_depth':         [10, 20],        # Dikurangi dari [None, 10, 20]
-        'min_samples_split': [5],             # Dikurangi dari [2, 5]
-        'min_samples_leaf':  [2],             # Dikurangi dari [1, 2]
-        'max_features':      ['sqrt'],        # Dikurangi dari ['sqrt', None]
+        'n_estimators':      [100, 200, 300],
+        'max_depth':         [None, 10, 20],
+        'min_samples_split': [2, 5],
+        'min_samples_leaf':  [1, 2],
+        'max_features':      ['sqrt', None],
     }
 
     gs = GridSearchCV(
@@ -254,12 +356,17 @@ def tune(X_train_s, y_train_s):
     return gs.best_params_
 
 
+# ══════════════════════════════════════════════════════════════
+# 5. TRAINING MODEL FINAL + CV EVALUATION
+# ══════════════════════════════════════════════════════════════
+
 def train(X_train_s, y_train_s, best_params):
     model = RandomForestRegressor(
         **best_params, random_state=RANDOM_SEED, n_jobs=-1
     )
     model.fit(X_train_s, y_train_s)
 
+    # CV score pada train set — dilaporkan sebagai evaluasi utama
     tscv = TimeSeriesSplit(n_splits=N_SPLITS_CV)
     cv_r2  = cross_val_score(model, X_train_s, y_train_s,
                               cv=tscv, scoring='r2')
@@ -273,6 +380,11 @@ def train(X_train_s, y_train_s, best_params):
 
     return model, cv_r2
 
+
+# ══════════════════════════════════════════════════════════════
+# 6. EVALUASI METRIK
+# ══════════════════════════════════════════════════════════════
+
 def hitung_metrik(y_true, y_pred, label):
     mae  = mean_absolute_error(y_true, y_pred)
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
@@ -284,7 +396,16 @@ def hitung_metrik(y_true, y_pred, label):
             'MAPE': mape, 'R2': r2}
 
 
+# ══════════════════════════════════════════════════════════════
+# 7. FEATURE IMPORTANCE
+# ══════════════════════════════════════════════════════════════
+
 def importance(model, X_test_s, y_test_s):
+    """
+    MDI (Mean Decrease in Impurity) — sesuai paper.
+    Permutation Importance dihitung sebagai cross-check
+    karena MDI cenderung bias pada fitur dengan kardinalitas tinggi.
+    """
     mdi = model.feature_importances_
 
     perm = permutation_importance(
@@ -303,9 +424,22 @@ def importance(model, X_test_s, y_test_s):
     return imp_df
 
 
+# ══════════════════════════════════════════════════════════════
+# 8. FORECASTING 2026
+# ══════════════════════════════════════════════════════════════
+
 def forecast_2026(df, model, scaler_X, scaler_y):
+    """
+    Forecasting 2026 dengan linear extrapolation per variabel.
+
+    lag_12 untuk setiap bulan 2026 diambil langsung dari
+    data aktual 2025 yang sudah tersedia di dataset —
+    tidak perlu estimasi atau asumsi tambahan.
+    """
+
     years = np.arange(2016, 2026)
 
+    # --- Extrapolasi variabel tahunan ---
     def extrap_tahunan(kolom):
         vals = df.groupby('Tahun')[kolom].first().values
         yr   = np.arange(df['Tahun'].min(), df['Tahun'].max() + 1)
@@ -317,16 +451,19 @@ def forecast_2026(df, model, scaler_X, scaler_y):
     rm_2026  = extrap_tahunan('Jumlah_Rumah_Makan')
     wis_2026 = extrap_tahunan('Jumlah_Wisatawan')
 
+    # --- Extrapolasi variabel semesteran ---
     sem_years = np.arange(df['Tahun'].min(), df['Tahun'].max() + 1)
     s1_vals = df[df['Bulan'] == 1].groupby('Tahun')['Jumlah_Rumah_Tangga'].first().values
     s2_vals = df[df['Bulan'] == 7].groupby('Tahun')['Jumlah_Rumah_Tangga'].first().values
     rt_s1_2026 = np.polyval(np.polyfit(sem_years, s1_vals, 1), 2026)
     rt_s2_2026 = np.polyval(np.polyfit(sem_years, s2_vals, 1), 2026)
 
+    # --- Rata-rata bulanan untuk variabel bulanan ---
     monthly_hotel = df.groupby('Bulan')['Tingkat_Hunian_Hotel'].mean()
     monthly_hujan = df.groupby('Bulan')['Curah_Hujan'].mean()
     monthly_hari  = df.groupby('Bulan')['Jumlah_Hari_Besar'].mean()
 
+    # --- lag_12 untuk 2026: ambil dari data aktual 2025 ---
     vol_2025 = df[df['Tahun'] == 2025].set_index('Bulan')['Volume_Sampah']
 
     records = []
@@ -345,7 +482,7 @@ def forecast_2026(df, model, scaler_X, scaler_y):
             'Jumlah_Hari_Besar':   monthly_hari[bulan],
             'Bulan_Sin': np.sin(2 * np.pi * bulan / 12),
             'Bulan_Cos': np.cos(2 * np.pi * bulan / 12),
-            'lag_12':    vol_2025[bulan], 
+            'lag_12':    vol_2025[bulan],  # ← data aktual 2025, tidak perlu estimasi
         }
         records.append(row)
 
@@ -366,9 +503,16 @@ def forecast_2026(df, model, scaler_X, scaler_y):
 
     return pred_df
 
-def visualisasi(df, y_train, y_test, pred_train, pred_test,
-                m_train, m_test, imp_df, pred_df, cv_r2):
-    
+
+# ══════════════════════════════════════════════════════════════
+# 9. VISUALISASI
+# ══════════════════════════════════════════════════════════════
+
+def visualisasi(df, y_train, y_test,
+                pred_train, pred_test,
+                m_train, m_test,
+                imp_df, pred_df, cv_r2):
+
     BULAN_LABEL = ['Jan','Feb','Mar','Apr','Mei','Jun',
                    'Jul','Agt','Sep','Okt','Nov','Des']
 
@@ -397,6 +541,7 @@ def visualisasi(df, y_train, y_test, pred_train, pred_test,
 
     fmt_ton = mticker.FuncFormatter(lambda x, _: f'{x:,.0f}')
 
+    # ── Plot 1 (span 2 kolom): Timeline historis + prediksi ──
     ax1 = fig.add_subplot(gs_main[0, :])
     ax1.plot(all_dates, y_all, color=C_BIRU, lw=1.8,
              label='Aktual', zorder=3)
@@ -416,6 +561,7 @@ def visualisasi(df, y_train, y_test, pred_train, pred_test,
     ax1.yaxis.set_major_formatter(fmt_ton)
     ax1.legend(fontsize=9); ax1.grid(True, alpha=0.3)
 
+    # ── Plot 2: Detail Test Set ──
     ax2 = fig.add_subplot(gs_main[1, 0])
     ax2.plot(test_dates, y_test, 'o-', color=C_BIRU, lw=2,
              ms=5.5, label='Aktual')
@@ -434,6 +580,7 @@ def visualisasi(df, y_train, y_test, pred_train, pred_test,
     ax2.legend(fontsize=9); ax2.grid(True, alpha=0.3)
     plt.setp(ax2.xaxis.get_majorticklabels(), rotation=30, ha='right')
 
+    # ── Plot 3: Scatter aktual vs prediksi (test) ──
     ax3 = fig.add_subplot(gs_main[1, 1])
     ax3.scatter(y_test, pred_test, color=C_UNGU, alpha=0.75,
                 s=60, edgecolors='white', lw=0.5, label='Test set')
@@ -448,6 +595,7 @@ def visualisasi(df, y_train, y_test, pred_train, pred_test,
     ax3.yaxis.set_major_formatter(fmt_ton)
     ax3.legend(fontsize=9); ax3.grid(True, alpha=0.3)
 
+    # ── Plot 4: Feature Importance (MDI) ──
     ax4 = fig.add_subplot(gs_main[2, 0])
     top_imp = imp_df.sort_values('MDI').tail(11)
     colors_fi = [
@@ -470,6 +618,7 @@ def visualisasi(df, y_train, y_test, pred_train, pred_test,
     ax4.set_xlabel('Importance Score')
     ax4.grid(True, alpha=0.3, axis='x')
 
+    # ── Plot 5: Residual plot (test set) ──
     ax5 = fig.add_subplot(gs_main[2, 1])
     residuals = y_test - pred_test
     ax5.scatter(pred_test, residuals, color=C_UNGU, alpha=0.75,
@@ -487,6 +636,7 @@ def visualisasi(df, y_train, y_test, pred_train, pred_test,
     ax5.yaxis.set_major_formatter(fmt_ton)
     ax5.legend(fontsize=9); ax5.grid(True, alpha=0.3)
 
+    # ── Plot 6: Forecasting 2026 ──
     ax6 = fig.add_subplot(gs_main[3, 0])
     hist_tail = df.tail(24)
     ax6.plot(hist_tail['Tanggal'], hist_tail[TARGET_COL],
@@ -503,6 +653,7 @@ def visualisasi(df, y_train, y_test, pred_train, pred_test,
     ax6.legend(fontsize=9); ax6.grid(True, alpha=0.3)
     plt.setp(ax6.xaxis.get_majorticklabels(), rotation=30, ha='right')
 
+    # ── Plot 7: Pola musiman historis ──
     ax7 = fig.add_subplot(gs_main[3, 1])
     monthly_avg = df.groupby('Bulan')[TARGET_COL].mean()
     monthly_std = df.groupby('Bulan')[TARGET_COL].std()
@@ -527,10 +678,12 @@ def visualisasi(df, y_train, y_test, pred_train, pred_test,
     plt.close()
     print(f"\n    Visualisasi → rf_sampah_hasil.png")
 
+    # ── Visualisasi 2: Analisis tambahan ──
     fig2, axes2 = plt.subplots(1, 2, figsize=(16, 6))
     fig2.suptitle('Analisis Tambahan — Volume Sampah Kota Surakarta',
                   fontsize=14, fontweight='bold')
 
+    # Heatmap
     ax = axes2[0]
     pivot = df.pivot_table(
         values=TARGET_COL, index='Tahun', columns='Bulan', aggfunc='mean'
@@ -563,9 +716,14 @@ def visualisasi(df, y_train, y_test, pred_train, pred_test,
     print(f"    Visualisasi → rf_sampah_analisis.png")
 
 
+# ══════════════════════════════════════════════════════════════
+# 10. SIMPAN OUTPUT CSV
+# ══════════════════════════════════════════════════════════════
+
 def simpan_csv(df, y_train, y_test, pred_train, pred_test,
                m_train, m_test, imp_df, pred_df, cv_r2):
 
+    # CSV 1: Aktual vs Prediksi — Train Set
     df_train_out = df.iloc[:SPLIT_IDX][['Tanggal','Tahun','Bulan', TARGET_COL]].copy()
     df_train_out['Prediksi'] = np.round(pred_train, 2)
     df_train_out['Error_Ton'] = np.round(y_train - pred_train, 2)
@@ -574,6 +732,7 @@ def simpan_csv(df, y_train, y_test, pred_train, pred_test,
     )
     df_train_out.to_csv(f'{OUTPUT_DIR}/rf_aktual_prediksi_train.csv', index=False)
 
+    # CSV 2: Aktual vs Prediksi — Test Set
     df_test_out = df.iloc[SPLIT_IDX:][['Tanggal','Tahun','Bulan', TARGET_COL]].copy()
     df_test_out['Prediksi'] = np.round(pred_test, 2)
     df_test_out['Error_Ton'] = np.round(y_test - pred_test, 2)
@@ -582,12 +741,15 @@ def simpan_csv(df, y_train, y_test, pred_train, pred_test,
     )
     df_test_out.to_csv(f'{OUTPUT_DIR}/rf_aktual_prediksi_test.csv', index=False)
 
+    # CSV 3: Prediksi 2026
     pred_df[['Tanggal','Tahun','Bulan','Prediksi_Volume']].to_csv(
         f'{OUTPUT_DIR}/rf_prediksi_2026.csv', index=False
     )
 
+    # CSV 4: Feature Importance
     imp_df.to_csv(f'{OUTPUT_DIR}/rf_feature_importance.csv', index=False)
 
+    # CSV 5: Ringkasan metrik train & test (lengkap, tanpa CV)
     pd.DataFrame([
         {'Set': 'Train (Hold-out)', 'R2': m_train['R2'], 'MAE': m_train['MAE'],
          'RMSE': m_train['RMSE'], 'MAPE_%': m_train['MAPE']},
@@ -595,6 +757,7 @@ def simpan_csv(df, y_train, y_test, pred_train, pred_test,
          'RMSE': m_test['RMSE'],  'MAPE_%': m_test['MAPE']},
     ]).to_csv(f'{OUTPUT_DIR}/rf_ringkasan_metrik.csv', index=False)
 
+    # CSV 6: CV score per fold (terpisah karena berbeda jenis informasi)
     cv_rows = [{'Fold': f'Fold {i+1}', 'R2': round(s, 4)}
                for i, s in enumerate(cv_r2)]
     cv_rows.append({'Fold': 'Mean', 'R2': round(cv_r2.mean(), 4)})
@@ -607,13 +770,20 @@ def simpan_csv(df, y_train, y_test, pred_train, pred_test,
     for f in files:
         print(f"    CSV → {f}")
 
+
+# ══════════════════════════════════════════════════════════════
+# MAIN
+# ══════════════════════════════════════════════════════════════
+
 if __name__ == '__main__':
     SEP = "═" * 60
 
     print(SEP)
     print("  RANDOM FOREST REGRESSION — PREDIKSI SAMPAH SURAKARTA")
+    print("  Kelompok 1 | Informatika UNS")
     print(SEP)
 
+    # 1. Preprocessing
     print("\n[1] PREPROCESSING")
     df = preprocess(data_raw)
     print(f"    Dataset    : {len(df)} observasi efektif "
@@ -621,18 +791,22 @@ if __name__ == '__main__':
     print(f"    Fitur      : {len(FITUR_COLS)} kolom")
     print(f"    Split      : {SPLIT_IDX} train / {len(df)-SPLIT_IDX} test")
 
+    # 2. Split & Scale
     print("\n[2] SPLIT & NORMALISASI")
     (X_train_s, X_test_s, y_train_s, y_test_s,
      y_train, y_test, X_all, y_all,
      scaler_X, scaler_y) = split_and_scale(df)
     print(f"    Scaler     : MinMaxScaler, fit pada train saja")
 
-    print("\n[3] HYPERPARAMETER TUNING")
+    # 3. Hyperparameter tuning
+    print("\n[3] HYPERPARAMETER TUNING (GridSearchCV + TimeSeriesSplit)")
     best_params = tune(X_train_s, y_train_s)
 
+    # 4. Training + CV
     print("\n[4] TRAINING MODEL FINAL")
     model, cv_r2 = train(X_train_s, y_train_s, best_params)
 
+    # 5. Prediksi
     pred_train_s = model.predict(X_train_s)
     pred_test_s  = model.predict(X_test_s)
     pred_train   = scaler_y.inverse_transform(
@@ -640,6 +814,7 @@ if __name__ == '__main__':
     pred_test    = scaler_y.inverse_transform(
         pred_test_s.reshape(-1, 1)).ravel()
 
+    # 6. Evaluasi
     print("\n[5] EVALUASI METRIK")
     print(f"  {'Metrik':<8} {'Train':>14} {'Test':>14}")
     print(f"  {'-'*38}")
@@ -650,6 +825,7 @@ if __name__ == '__main__':
         print(f"    Fold {i+1}: {s:.4f}")
     print(f"  Rata-rata CV R² : {cv_r2.mean():.4f} ± {cv_r2.std():.4f}")
 
+    # 7. Feature Importance
     print("\n[6] FEATURE IMPORTANCE")
     imp_df = importance(model, X_test_s, y_test_s)
     print(f"\n  {'No':<4} {'Fitur':<22} {'MDI':>8} {'Perm':>8}")
@@ -658,6 +834,7 @@ if __name__ == '__main__':
         print(f"  {i+1:<4} {row['Fitur']:<22} "
               f"{row['MDI']:>8.4f} {row['Perm_Mean']:>8.4f}")
 
+    # 8. Forecasting 2026
     print("\n[7] FORECASTING 2026")
     pred_df = forecast_2026(df, model, scaler_X, scaler_y)
     print(f"\n  {'Bulan':<12} {'Prediksi (Ton)':>16}")
@@ -673,10 +850,16 @@ if __name__ == '__main__':
     print(f"  {'Total':<12} "
           f"{pred_df['Prediksi_Volume'].sum():>16,.2f}")
 
+    # 9. Visualisasi
     print("\n[8] VISUALISASI")
     visualisasi(df, y_train, y_test, pred_train, pred_test,
                 m_train, m_test, imp_df, pred_df, cv_r2)
 
+    # 10. Simpan CSV
     print("\n[9] SIMPAN CSV")
     simpan_csv(df, y_train, y_test, pred_train, pred_test,
                m_train, m_test, imp_df, pred_df, cv_r2)
+
+    print(f"\n{SEP}")
+    print("  SELESAI — semua output tersimpan di outputs/")
+    print(SEP)
