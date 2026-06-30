@@ -234,7 +234,7 @@
             <div class="h-px bg-on-primary opacity-20"></div>
             <div>
                 <h4 class="font-label-md font-bold text-primary-fixed mb-1">Recursive Forecasting</h4>
-                <p class="font-body-md opacity-90 leading-relaxed">Untuk memprediksi tahun di masa depan, model menggunakan teknik <em>recursive forecasting</em> — hasil prediksi tahun sebelumnya digunakan sebagai input lag-12 untuk tahun berikutnya.</p>
+                <p class="font-body-md opacity-90 leading-relaxed">Untuk memprediksi tahun di masa depan, model menggunakan teknik <em>recursive forecasting</em> hasil prediksi tahun sebelumnya digunakan sebagai input lag-12 untuk tahun berikutnya.</p>
             </div>
         </div>
     </div>
@@ -308,7 +308,7 @@
 </table>
 </div>
 <div class="px-6 py-4 bg-surface-container-low border-t border-outline-variant">
-<p class="font-label-sm text-on-surface-variant italic">*Data berdasarkan model peramalan prediktif versi 2.4. Hasil aktual dapat bervariasi tergantung pada regulasi industri baru.</p>
+<p class="font-label-sm text-on-surface-variant italic">Data berdasarkan model peramalan prediktif versi 2.4. Hasil aktual dapat bervariasi tergantung pada regulasi industri baru.</p>
 </div>
 </div>
 <!-- Insight Cards (Bottom Row) -->
