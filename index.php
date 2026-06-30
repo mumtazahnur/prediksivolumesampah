@@ -1,3 +1,14 @@
+<?php
+// Hitung metrik aktual dari dataset historis
+$dataset = include 'data.php';
+$data_2024 = array_filter($dataset, fn($r) => $r['tahun'] == 2024);
+$data_2025 = array_filter($dataset, fn($r) => $r['tahun'] == 2025);
+$total_2024 = array_sum(array_column($data_2024, 'volume'));
+$total_2025 = array_sum(array_column($data_2025, 'volume'));
+$avg_monthly_2025 = count($data_2025) > 0 ? $total_2025 / count($data_2025) : 0;
+$growth_pct = $total_2024 > 0 ? (($total_2025 - $total_2024) / $total_2024) * 100 : 0;
+$growth_sign = $growth_pct >= 0 ? '+' : '';
+?>
 <!DOCTYPE html><html class="light" lang="en"><head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
@@ -109,134 +120,110 @@
     </style>
 </head>
 <body class="bg-background text-on-surface">
-<!-- SideNavBar -->
-<aside class="fixed left-0 top-0 h-full w-[280px] bg-surface-container hidden md:flex flex-col p-4 gap-2 z-50">
-<div class="flex items-center gap-3 px-4 py-6 mb-4">
-<div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-on-primary">
-<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">recycling</span>
-</div>
-<div>
-<h1 class="font-headline-sm text-[20px] font-black text-primary leading-tight">WastePredict</h1>
-<p class="font-label-sm text-on-surface-variant opacity-70">Industrial Intelligence</p>
-</div>
-</div>
-<nav class="flex-grow flex flex-col gap-1">
-<!-- Active Tab: Overview -->
-<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg font-medium" href="index.php">
-<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
-<span class="font-label-md">Overview</span>
-</a>
-<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all" href="datasets.php">
-<span class="material-symbols-outlined">database</span>
-<span class="font-label-md">Datasets</span>
-</a>
-<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all" href="predictionPage.php">
-<span class="material-symbols-outlined">query_stats</span>
-<span class="font-label-md">Predictions</span>
-</a>
-<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all" href="inputPage.php">
-<span class="material-symbols-outlined">edit_note</span>
-<span class="font-label-md">Input Tool</span>
-</a>
-</nav>
-<div class="mt-auto flex flex-col gap-1 border-t border-outline-variant pt-4">
-<button class="w-full bg-primary text-on-primary font-label-md py-3 rounded-lg mb-4 hover:opacity-90 transition-opacity">
-                Generate Insights
-            </button>
-<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all" href="#">
-<span class="material-symbols-outlined">description</span>
-<span class="font-label-md">Documentation</span>
-</a>
-<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all" href="#">
-<span class="material-symbols-outlined">help</span>
-<span class="font-label-md">Support</span>
-</a>
-</div>
+
+<!-- Overlay mobile sidebar -->
+<div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity duration-300" onclick="closeSidebar()"></div>
+
+<!-- Tombol hamburger (hanya mobile) -->
+<button id="hamburger-btn" onclick="openSidebar()" class="md:hidden fixed top-4 left-4 z-50 bg-surface-container-high p-2.5 rounded-xl shadow-md hover:bg-surface-container border border-outline-variant transition-all duration-200 text-on-surface">
+    <span class="material-symbols-outlined">menu</span>
+</button>
+
+<!-- Sidebar -->
+<aside id="sidebar" class="fixed left-0 top-0 h-full w-[280px] bg-surface-container flex flex-col p-4 gap-2 z-50 -translate-x-full md:translate-x-0 transition-transform duration-300 ease-out">
+    <!-- Tombol tutup (hanya mobile) -->
+    <button onclick="closeSidebar()" class="md:hidden self-end p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 mb-1">
+        <span class="material-symbols-outlined">close</span>
+    </button>
+    <div class="flex items-center gap-3 px-4 py-4 mb-4">
+        <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-on-primary">
+            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">recycling</span>
+        </div>
+        <div>
+            <h1 class="font-headline-sm text-[20px] font-black text-primary leading-tight">WastePredict</h1>
+            <p class="font-label-sm text-on-surface-variant opacity-70">Industrial Intelligence</p>
+        </div>
+    </div>
+    <nav class="flex-grow flex flex-col gap-1">
+        <!-- Active Tab: Overview -->
+        <a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg font-medium" href="index.php">
+            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+            <span class="font-label-md">Overview</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:translate-x-1 rounded-lg transition-all duration-200 active:scale-95" href="datasets.php">
+            <span class="material-symbols-outlined">database</span>
+            <span class="font-label-md">Datasets</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:translate-x-1 rounded-lg transition-all duration-200 active:scale-95" href="predictionPage.php">
+            <span class="material-symbols-outlined">query_stats</span>
+            <span class="font-label-md">Predictions</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:translate-x-1 rounded-lg transition-all duration-200 active:scale-95" href="inputPage.php">
+            <span class="material-symbols-outlined">edit_note</span>
+            <span class="font-label-md">Input Tool</span>
+        </a>
+    </nav>
 </aside>
 
 <!-- Main Content Wrapper -->
 <main class="md:ml-[280px] min-h-screen flex flex-col">
-<!-- TopAppBar -->
-<header class="sticky top-0 z-40 glass-header shadow-sm px-margin-desktop py-4 flex justify-between items-center w-full max-w-container-max mx-auto">
-<div class="flex items-center gap-6">
-<!-- Mobile Menu Trigger -->
-<button class="md:hidden text-on-surface">
-<span class="material-symbols-outlined">menu</span>
-</button>
-<div class="hidden md:flex gap-6 items-center">
-<a class="font-label-md text-primary border-b-2 border-primary pb-1" href="index.php">Dashboard</a>
-<a class="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="datasets.php">Datasets</a>
-<a class="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="predictionPage.php">Predictions</a>
-<a class="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="inputPage.php">Input Tool</a>
-</div>
-</div>
-<div class="flex items-center gap-4">
-<div class="relative hidden sm:block">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">search</span>
-<input class="pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-full text-label-md focus:outline-none focus:border-primary w-64" placeholder="Search insights..." type="text">
-</div>
-<button class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full">
-<span class="material-symbols-outlined">notifications</span>
-</button>
-<button class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full">
-<span class="material-symbols-outlined">settings</span>
-</button>
-<div class="h-8 w-8 rounded-full bg-surface-variant overflow-hidden border border-outline-variant">
-<img class="w-full h-full object-cover" data-alt="Profile Picture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASrfSVD_ibh7-GNPyneQYpDDUlBg6ygZjlIXdk6ed0x3q9zz_D8jswqlTTpvbbJDv9Sa5J_0SmoV_Gsgchv486_FKB7Yy1-6-ckGJC9Rg7PkGDo2cJdkeEH0ep7IY4-blYspYWyDpvZGtxAWmQr_op4Aj4ghTTFqAAq1haKpQGi0--txcfOwUzDE6QbdoDha3u_vekzkJWmWOtMmEJeGQhdJUendlq3s2y26J3TW8aY-mXUg7uRXaDOgw-qcjbKF_ZLl171QYpO-o">
-</div>
-</div>
-</header>
 <!-- Page Content -->
-<div class="flex-grow p-margin-desktop max-w-container-max w-full mx-auto">
+<div class="flex-grow p-margin-desktop pt-20 md:pt-margin-desktop max-w-container-max w-full mx-auto">
 <div class="mb-8 max-w-3xl">
-<nav class="flex items-center gap-2 text-label-sm text-outline mb-4">
-<span>Dashboard</span>
-<span class="material-symbols-outlined text-[14px]">chevron_right</span>
-<span class="text-primary">Overview</span>
-</nav>
-<h2 class="font-display-lg text-display-lg text-primary mb-4">Dashboard Overview</h2>
-<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
-    Welcome back to WastePredict AI. Monitor real-time industrial waste metrics, track sustainability performance, and review AI-generated insights across your facilities.
-</p>
+    <nav class="flex items-center gap-2 text-label-sm text-outline mb-4">
+        <span>Dashboard</span>
+        <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+        <span class="text-primary">Overview</span>
+    </nav>
+    <h2 class="font-display-lg text-display-lg text-primary mb-4">Dashboard Overview</h2>
+    <p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
+        Selamat datang di WastePredict AI. Pantau volume sampah historis Kota Surakarta, analisis tren, dan gunakan engine prediksi berbasis Random Forest untuk proyeksi ke depan.
+    </p>
 </div>
 
-<!-- Key Metrics -->
+<!-- Key Metrics dari Data Aktual -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-8">
-<div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-surface-variant border-l-4 border-l-primary">
-<div class="flex justify-between items-start mb-4">
-<div class="bg-primary-container/20 p-3 rounded-lg text-primary">
-<span class="material-symbols-outlined">monitoring</span>
-</div>
-<span class="flex items-center text-sm font-medium text-primary bg-primary-container/20 px-2 py-1 rounded-full"><span class="material-symbols-outlined text-[16px] mr-1">arrow_upward</span>12.5%</span>
-</div>
-<p class="text-label-sm text-outline uppercase mb-1">Total Waste Processed</p>
-<h3 class="text-headline-lg font-bold text-on-surface">1,245.8<span class="text-body-md text-outline ml-1">Tons</span></h3>
-<p class="text-sm text-on-surface-variant mt-2">This month vs last month</p>
-</div>
+    <!-- Total Volume Sampah 2025 -->
+    <div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-surface-variant border-l-4 border-l-primary">
+        <div class="flex justify-between items-start mb-4">
+            <div class="bg-primary-container/20 p-3 rounded-lg text-primary">
+                <span class="material-symbols-outlined">monitoring</span>
+            </div>
+            <span class="flex items-center text-sm font-medium <?= $growth_pct >= 0 ? 'text-error bg-error-container/20' : 'text-primary bg-primary-container/20' ?> px-2 py-1 rounded-full">
+                <span class="material-symbols-outlined text-[16px] mr-1"><?= $growth_pct >= 0 ? 'arrow_upward' : 'arrow_downward' ?></span>
+                <?= $growth_sign . number_format(abs($growth_pct), 1) ?>%
+            </span>
+        </div>
+        <p class="text-label-sm text-outline uppercase mb-1">Total Sampah 2025 (Aktual)</p>
+        <h3 class="text-headline-lg font-bold text-on-surface"><?= number_format($total_2025 / 1000, 1, ',', '.') ?><span class="text-body-md text-outline ml-1">Ribu Ton</span></h3>
+        <p class="text-sm text-on-surface-variant mt-2">Pertumbuhan vs tahun 2024</p>
+    </div>
 
-<div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-surface-variant border-l-4 border-l-secondary">
-<div class="flex justify-between items-start mb-4">
-<div class="bg-secondary-container/50 p-3 rounded-lg text-secondary">
-<span class="material-symbols-outlined">recycling</span>
-</div>
-<span class="flex items-center text-sm font-medium text-primary bg-primary-container/20 px-2 py-1 rounded-full"><span class="material-symbols-outlined text-[16px] mr-1">arrow_upward</span>4.2%</span>
-</div>
-<p class="text-label-sm text-outline uppercase mb-1">Recycling Rate</p>
-<h3 class="text-headline-lg font-bold text-on-surface">68.5<span class="text-body-md text-outline ml-1">%</span></h3>
-<p class="text-sm text-on-surface-variant mt-2">Overall efficiency target: 75%</p>
-</div>
+    <!-- Rata-rata Bulanan 2025 -->
+    <div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-surface-variant border-l-4 border-l-secondary">
+        <div class="flex justify-between items-start mb-4">
+            <div class="bg-secondary-container/50 p-3 rounded-lg text-secondary">
+                <span class="material-symbols-outlined">calendar_month</span>
+            </div>
+            <span class="px-2 py-1 bg-secondary-container text-on-secondary-container rounded-full text-xs font-semibold">2025</span>
+        </div>
+        <p class="text-label-sm text-outline uppercase mb-1">Rata-rata Bulanan 2025</p>
+        <h3 class="text-headline-lg font-bold text-on-surface"><?= number_format($avg_monthly_2025, 0, ',', '.') ?><span class="text-body-md text-outline ml-1">Ton</span></h3>
+        <p class="text-sm text-on-surface-variant mt-2">Per bulan, data historis aktual</p>
+    </div>
 
-<div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-surface-variant border-l-4 border-l-error">
-<div class="flex justify-between items-start mb-4">
-<div class="bg-error-container/50 p-3 rounded-lg text-error">
-<span class="material-symbols-outlined">warning</span>
-</div>
-<span class="flex items-center text-sm font-medium text-error bg-error-container/20 px-2 py-1 rounded-full"><span class="material-symbols-outlined text-[16px] mr-1">arrow_downward</span>1.1%</span>
-</div>
-<p class="text-label-sm text-outline uppercase mb-1">Hazardous Incidents</p>
-<h3 class="text-headline-lg font-bold text-on-surface">3<span class="text-body-md text-outline ml-1">Events</span></h3>
-<p class="text-sm text-on-surface-variant mt-2">Requires immediate attention</p>
-</div>
+    <!-- Jumlah Record Dataset -->
+    <div class="bg-surface-container-lowest p-6 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-surface-variant border-l-4 border-l-tertiary">
+        <div class="flex justify-between items-start mb-4">
+            <div class="bg-tertiary-container/30 p-3 rounded-lg text-tertiary">
+                <span class="material-symbols-outlined">database</span>
+            </div>
+            <span class="px-2 py-1 bg-tertiary-container/30 text-tertiary rounded-full text-xs font-semibold">2016–2025</span>
+        </div>
+        <p class="text-label-sm text-outline uppercase mb-1">Total Data Historis</p>
+        <h3 class="text-headline-lg font-bold text-on-surface"><?= count($dataset) ?><span class="text-body-md text-outline ml-1">Records</span></h3>
+        <p class="text-sm text-on-surface-variant mt-2">Data bulanan Kota Surakarta</p>
+    </div>
 </div>
 
 <div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-surface-variant p-8 flex flex-col items-center justify-center min-h-[300px]">
@@ -248,14 +235,23 @@
 
 </div>
 <!-- Footer -->
-<footer class="w-full py-8 mt-auto bg-surface-dim border-t border-outline-variant">
-<div class="flex flex-col md:flex-row justify-between items-center px-margin-desktop w-full max-w-container-max mx-auto gap-4">
-<div class="flex items-center gap-2">
-<span class="font-label-md font-bold text-primary">WastePredict AI</span>
-<span class="text-on-surface-variant opacity-20">|</span>
-<p class="font-label-sm text-on-surface-variant">© 2024 WastePredict AI. Environmental Stewardship through Precision.</p>
-</div>
-</div>
+<footer class="w-full py-6 mt-auto bg-surface-dim border-t border-outline-variant">
+    <div class="px-margin-desktop w-full max-w-container-max mx-auto">
+        <p class="font-label-sm text-on-surface-variant text-center">© <?= date('Y') ?> WastePredict AI — Data Historis Kota Surakarta. Environmental Stewardship through Precision.</p>
+    </div>
 </footer>
 </main>
+
+<script>
+function openSidebar() {
+    document.getElementById('sidebar').classList.remove('-translate-x-full');
+    document.getElementById('sidebar-overlay').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+    document.getElementById('sidebar').classList.add('-translate-x-full');
+    document.getElementById('sidebar-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+</script>
 </body></html>

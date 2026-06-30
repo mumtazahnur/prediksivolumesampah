@@ -114,75 +114,60 @@
             100% { transform: translateY(0px); }
         }
         .float-animation { animation: float 4s ease-in-out infinite; }
+        .glass-header {
+            backdrop-filter: blur(12px);
+            background-color: rgba(248, 249, 250, 0.8);
+        }
     </style>
 </head>
 <body class="text-on-surface">
+
+<!-- Overlay mobile sidebar -->
+<div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity duration-300" onclick="closeSidebar()"></div>
+
+<!-- Tombol hamburger (hanya mobile) -->
+<button id="hamburger-btn" onclick="openSidebar()" class="md:hidden fixed top-4 left-4 z-50 bg-surface-container-high p-2.5 rounded-xl shadow-md hover:bg-surface-container border border-outline-variant transition-all duration-200 text-on-surface">
+    <span class="material-symbols-outlined">menu</span>
+</button>
+
 <!-- Sidebar Navigation -->
-<aside class="fixed left-0 top-0 h-full w-[280px] bg-surface-container flex flex-col p-4 gap-2 hidden md:flex">
-<div class="flex items-center gap-3 px-2 mb-8">
-<div class="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center text-on-primary-container">
-<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">recycling</span>
-</div>
-<div>
-<h1 class="font-headline-sm text-headline-sm font-black text-primary">WastePredict</h1>
-<p class="text-xs text-on-surface-variant uppercase tracking-wider font-bold">Industrial Intelligence</p>
-</div>
-</div>
-<nav class="flex-1 flex flex-col gap-1">
-<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all font-label-md" href="index.php">
-<span class="material-symbols-outlined">dashboard</span> Overview
-            </a>
-<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all font-label-md" href="datasets.php">
-<span class="material-symbols-outlined">database</span> Datasets
-            </a>
-<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all font-label-md" href="predictionPage.php">
-<span class="material-symbols-outlined">query_stats</span> Predictions
-            </a>
-<a class="flex items-center gap-3 p-3 bg-secondary-container text-on-secondary-container rounded-lg font-label-md" href="inputPage.php">
-<span class="material-symbols-outlined">edit_note</span> Input Tool
-            </a>
-</nav>
-<button class="mt-4 mb-8 bg-primary text-on-primary py-3 px-4 rounded-xl font-label-md flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
-<span class="material-symbols-outlined text-sm">auto_awesome</span> Generate Insights
-        </button>
-<div class="pt-4 border-t border-outline-variant flex flex-col gap-1">
-<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all font-label-md" href="#">
-<span class="material-symbols-outlined">description</span> Documentation
-            </a>
-<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all font-label-md" href="#">
-<span class="material-symbols-outlined">help</span> Support
-            </a>
-</div>
+<aside id="sidebar" class="fixed left-0 top-0 h-full w-[280px] bg-surface-container flex flex-col p-4 gap-2 z-50 -translate-x-full md:translate-x-0 transition-transform duration-300 ease-out">
+    <button onclick="closeSidebar()" class="md:hidden self-end p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 mb-1">
+        <span class="material-symbols-outlined">close</span>
+    </button>
+    <div class="flex items-center gap-3 px-4 py-4 mb-4">
+        <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-on-primary">
+            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">recycling</span>
+        </div>
+        <div>
+            <h1 class="font-headline-sm text-[20px] font-black text-primary leading-tight">WastePredict</h1>
+            <p class="font-label-sm text-on-surface-variant opacity-70">Industrial Intelligence</p>
+        </div>
+    </div>
+    <nav class="flex-grow flex flex-col gap-1">
+        <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:translate-x-1 rounded-lg transition-all duration-200 active:scale-95" href="index.php">
+            <span class="material-symbols-outlined">dashboard</span>
+            <span class="font-label-md">Overview</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:translate-x-1 rounded-lg transition-all duration-200 active:scale-95" href="datasets.php">
+            <span class="material-symbols-outlined">database</span>
+            <span class="font-label-md">Datasets</span>
+        </a>
+        <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:translate-x-1 rounded-lg transition-all duration-200 active:scale-95" href="predictionPage.php">
+            <span class="material-symbols-outlined">query_stats</span>
+            <span class="font-label-md">Predictions</span>
+        </a>
+        <!-- Active Tab: Input Tool -->
+        <a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg font-medium" href="inputPage.php">
+            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">edit_note</span>
+            <span class="font-label-md">Input Tool</span>
+        </a>
+    </nav>
 </aside>
 <!-- Main Content Area -->
 <main class="md:ml-[280px] min-h-screen flex flex-col">
-<!-- Top App Bar -->
-<header class="bg-surface shadow-sm sticky top-0 z-10">
-<div class="flex justify-between items-center w-full px-margin-desktop py-4 max-w-container-max mx-auto">
-<div class="flex items-center gap-8">
-<span class="font-headline-md text-headline-md font-bold text-primary md:hidden">WP</span>
-<nav class="hidden lg:flex items-center gap-6">
-<a class="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="index.php">Dashboard</a>
-<a class="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="datasets.php">Datasets</a>
-<a class="font-label-md text-on-surface-variant hover:text-primary transition-colors" href="predictionPage.php">Predictions</a>
-<a class="font-label-md text-primary border-b-2 border-primary pb-1" href="inputPage.php">Input Tool</a>
-</nav>
-</div>
-<div class="flex items-center gap-4">
-<div class="relative hidden sm:block">
-<input class="pl-10 pr-4 py-2 bg-surface-container-low border-none rounded-full text-sm focus:ring-2 focus:ring-primary w-64" placeholder="Search data..." type="text">
-<span class="material-symbols-outlined absolute left-3 top-2 text-on-surface-variant text-xl">search</span>
-</div>
-<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined">notifications</span></button>
-<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined">settings</span></button>
-<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant">
-<img class="w-full h-full object-cover" data-alt="A professional headshot of a corporate environmental analyst in high-key studio lighting. The user has a confident smile and is wearing modern, minimal business casual attire. The image is clean and bright, matching a light-mode modern UI aesthetic with a soft gray background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCKQzMaVpAY_JlMm5jJooPh8l0T3KCddVcU4RyOQCAeI8Qwuye_XRSzuK1O-sdEpT7qjX18sdCVGD_4RDToXttuydY4nDqQ1CkM0gsAcJ17fi97SYT_y7CQCsEHUYwN3Nthpmq-Ny-v9IEtFLByZuJB7InJ8_WzI2K9Tc0raajamGe4tWE6Bj0oiqyg89P4DqskHAlXGwGRBMGs2kG8EvE3sMHGQfsZGWRsMIuencl_dqCwL9jk12JW5OeKuf-7drHPcjz6he1o2Hw">
-</div>
-</div>
-</div>
-</header>
 <!-- Canvas -->
-<div class="flex-1 p-8 max-w-6xl mx-auto w-full">
+<div class="flex-1 p-8 pt-20 md:pt-8 max-w-6xl mx-auto w-full">
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
 <!-- Prediction Form Section -->
 <div class="lg:col-span-4 space-y-6">
@@ -260,131 +245,139 @@
 </div>
 </div>
 <div class="mt-8 flex gap-4 relative z-10">
-<button class="flex-1 border border-primary text-primary py-3 rounded-lg font-label-md hover:bg-secondary-container transition-colors">Export PDF</button>
-<button class="flex-1 bg-primary text-on-primary py-3 rounded-lg font-label-md hover:opacity-90 transition-opacity">Save Scenarios</button>
+    <button id="export-pdf-btn" onclick="exportPDF()" class="flex-grow border border-primary text-primary py-3 rounded-lg font-label-md hover:bg-secondary-container transition-colors flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled title="Jalankan simulasi terlebih dahulu">
+        <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span> Export PDF
+    </button>
 </div>
 </div>
-</div>
-</div>
-</div>
-<!-- Visual Decorative Element -->
-<div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-<div class="p-6 bg-surface-container-low rounded-xl border border-outline-variant/30 flex items-center gap-4">
-<div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-<span class="material-symbols-outlined text-primary">recycling</span>
-</div>
-<div>
-<p class="font-label-sm text-on-surface-variant">Target Recycling</p>
-<p class="font-headline-md text-primary">64%</p>
-</div>
-</div>
-<div class="p-6 bg-surface-container-low rounded-xl border border-outline-variant/30 flex items-center gap-4">
-<div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-<span class="material-symbols-outlined text-primary">factory</span>
-</div>
-<div>
-<p class="font-label-sm text-on-surface-variant">Industrial Impact</p>
-<p class="font-headline-md text-primary">High</p>
-</div>
-</div>
-<div class="p-6 bg-surface-container-low rounded-xl border border-outline-variant/30 flex items-center gap-4">
-<div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-<span class="material-symbols-outlined text-primary">precision_manufacturing</span>
-</div>
-<div>
-<p class="font-label-sm text-on-surface-variant">Accuracy Score</p>
-<p class="font-headline-md text-primary">98.2%</p>
 </div>
 </div>
 </div>
 </div>
 <!-- Footer -->
 <footer class="bg-surface-dim border-t border-outline-variant mt-auto">
-<div class="flex flex-col md:flex-row justify-between items-center px-margin-desktop py-8 max-w-container-max mx-auto w-full">
-<p class="font-label-sm text-on-surface-variant">© 2024 WastePredict AI. Environmental Stewardship through Precision.</p>
-<div class="flex gap-6 mt-4 md:mt-0">
-<a class="font-label-sm text-on-secondary-container hover:text-primary" href="#">Privacy Policy</a>
-<a class="font-label-sm text-on-secondary-container hover:text-primary" href="#">Terms of Service</a>
-<a class="font-label-sm text-on-secondary-container hover:text-primary" href="#">API Status</a>
-</div>
-</div>
+    <div class="px-margin-desktop py-6 max-w-container-max mx-auto w-full">
+        <p class="font-label-sm text-on-surface-variant text-center">&copy; <?php echo date('Y'); ?> WastePredict AI &mdash; Predictive Engine powered by Random Forest. Environmental Stewardship through Precision.</p>
+    </div>
 </footer>
 </main>
+
 <script>
-        // Mendengarkan event 'submit' pada form input tahun prediksi
-        document.getElementById('prediction-form').addEventListener('submit', function(e) {
-            e.preventDefault(); // Mencegah reload halaman secara default
-            
-            // Mengambil nilai tahun target yang diinput oleh user
-            const year = document.getElementById('year-input').value;
-            
-            // Mengaktifkan efek loading pada tombol submit form
-            const runBtn = e.target.querySelector('button[type="submit"]');
-            const originalBtnHtml = runBtn.innerHTML;
-            runBtn.disabled = true; // Menonaktifkan tombol sementara
-            runBtn.innerHTML = '<span class="material-symbols-outlined animate-spin" style="font-variation-settings: \'opsz\' 20;">sync</span> Running...';
+// ====== DATA STORE ======
+// Menyimpan data JSON terakhir dari model AI untuk digunakan saat export PDF
+let predictionData = null;
 
-            // Memanggil API predict.php secara asynchronous menggunakan fetch
-            fetch('predict.php?year=' + year)
-                .then(response => response.json()) // Mengonversi respon server menjadi object JSON
-                .then(data => {
-                    // Mengembalikan tombol submit ke keadaan semula setelah respon diterima
-                    runBtn.disabled = false;
-                    runBtn.innerHTML = originalBtnHtml;
+// ====== FORM SUBMISSION ======
+// Mendengarkan event 'submit' pada form input tahun prediksi
+document.getElementById('prediction-form').addEventListener('submit', function(e) {
+    e.preventDefault(); // Mencegah reload halaman secara default
 
-                    if (data.status === 'success') {
-                        // Menyembunyikan card placeholder kosong dan menampilkan card hasil simulasi
-                        document.getElementById('results-placeholder').classList.add('hidden');
-                        const resultsCard = document.getElementById('results-card');
-                        resultsCard.classList.remove('hidden');
-                        
-                        // Merender hasil prediksi ke elemen HTML (Tahun Target dan Total Volume Tahunan)
-                        document.getElementById('display-year').innerText = data.target_year;
-                        document.getElementById('display-year-label').innerText = data.target_year;
-                        document.getElementById('display-volume').innerText = Math.round(data.total_annual).toLocaleString('id-ID');
-                        
-                        const trendIcon = document.getElementById('trend-icon');
-                        const trendContainer = document.getElementById('trend-container');
-                        const percentageText = document.getElementById('display-percentage');
+    // Mengambil nilai tahun target yang diinput oleh user
+    const year = document.getElementById('year-input').value;
 
-                        // Menghitung & merender trend persentase kenaikan/penurunan dibanding tahun 2025
-                        const growth = data.growth_rate_vs_2025;
-                        if (growth >= 0) {
-                            percentageText.innerText = `+${growth}%`;
-                            trendContainer.className = "flex items-center gap-2 text-error"; // Warna merah jika naik
-                            trendIcon.innerText = "trending_up";
-                        } else {
-                            percentageText.innerText = `${growth}%`;
-                            trendContainer.className = "flex items-center gap-2 text-primary"; // Warna hijau jika turun
-                            trendIcon.innerText = "trending_down";
-                        }
+    // Mengaktifkan efek loading pada tombol submit form
+    const runBtn = e.target.querySelector('button[type="submit"]');
+    const originalBtnHtml = runBtn.innerHTML;
+    runBtn.disabled = true; // Menonaktifkan tombol sementara
+    runBtn.innerHTML = '<span class="material-symbols-outlined animate-spin" style="font-variation-settings: \'opsz\' 20;">sync</span> Running...';
 
-                        // Menjalankan animasi tinggi grafik batang (bar chart) berdasarkan rasio volume dibanding tahun 2025
-                        setTimeout(() => {
-                            const ratio = Math.min(Math.max(30, (data.total_annual / data.total_2025_actual) * 65), 100);
-                            document.getElementById('current-bar').style.height = ratio + '%';
-                        }, 100);
-                    } else {
-                        // Menampilkan alert jika API predict.php mengembalikan error status
-                        alert('Error: ' + data.message);
-                    }
-                })
-                .catch(err => {
-                    // Penanganan jika koneksi ke server gagal
-                    runBtn.disabled = false;
-                    runBtn.innerHTML = originalBtnHtml;
-                    alert('Gagal menghubungi engine prediksi: ' + err.message);
-                });
-        });
+    // Memanggil API predict.php secara asynchronous menggunakan fetch
+    fetch('predict.php?year=' + year)
+        .then(response => response.json()) // Mengonversi respon server menjadi object JSON
+        .then(data => {
+            // Mengembalikan tombol submit ke keadaan semula setelah respon diterima
+            runBtn.disabled = false;
+            runBtn.innerHTML = originalBtnHtml;
 
-        // Initialize mobile menu or other micro-interactions if needed
-        window.addEventListener('scroll', () => {
-            const header = document.querySelector('header');
-            if (window.scrollY > 20) {
-                header.classList.add('shadow-md');
+            if (data.status === 'success') {
+                // Simpan data prediksi ke variable global untuk digunakan saat export PDF
+                predictionData = data;
+
+                // Aktifkan tombol Export PDF setelah hasil tersedia
+                const pdfBtn = document.getElementById('export-pdf-btn');
+                pdfBtn.disabled = false;
+                pdfBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                pdfBtn.title = 'Download laporan PDF prediksi';
+
+                // Menyembunyikan card placeholder kosong dan menampilkan card hasil simulasi
+                document.getElementById('results-placeholder').classList.add('hidden');
+                const resultsCard = document.getElementById('results-card');
+                resultsCard.classList.remove('hidden');
+
+                // Merender hasil prediksi ke elemen HTML (Tahun Target dan Total Volume Tahunan)
+                document.getElementById('display-year').innerText = data.target_year;
+                document.getElementById('display-year-label').innerText = data.target_year;
+                document.getElementById('display-volume').innerText = Math.round(data.total_annual).toLocaleString('id-ID');
+
+                const trendIcon = document.getElementById('trend-icon');
+                const trendContainer = document.getElementById('trend-container');
+                const percentageText = document.getElementById('display-percentage');
+
+                // Menghitung & merender trend persentase kenaikan/penurunan dibanding tahun 2025
+                const growth = data.growth_rate_vs_2025;
+                if (growth >= 0) {
+                    percentageText.innerText = `+${growth}%`;
+                    trendContainer.className = "flex items-center gap-2 text-error"; // Warna merah jika naik
+                    trendIcon.innerText = "trending_up";
+                } else {
+                    percentageText.innerText = `${growth}%`;
+                    trendContainer.className = "flex items-center gap-2 text-primary"; // Warna hijau jika turun
+                    trendIcon.innerText = "trending_down";
+                }
+
+                // Menjalankan animasi tinggi grafik batang (bar chart) berdasarkan rasio volume dibanding tahun 2025
+                setTimeout(() => {
+                    const ratio = Math.min(Math.max(30, (data.total_annual / data.total_2025_actual) * 65), 100);
+                    document.getElementById('current-bar').style.height = ratio + '%';
+                }, 100);
             } else {
-                header.classList.remove('shadow-md');
+                // Menampilkan alert jika API predict.php mengembalikan error status
+                alert('Error: ' + data.message);
             }
+        })
+        .catch(err => {
+            // Penanganan jika koneksi ke server gagal
+            runBtn.disabled = false;
+            runBtn.innerHTML = originalBtnHtml;
+            alert('Gagal menghubungi engine prediksi: ' + err.message);
         });
-    </script>
+});
+
+// ====== EXPORT PDF ======
+// Mengirim data prediksi ke generate_pdf.php dan membuka laporan di tab baru
+function exportPDF() {
+    if (!predictionData) {
+        alert('Jalankan simulasi terlebih dahulu sebelum export PDF.');
+        return;
+    }
+    // Kirim JSON via fetch POST ke generate_pdf.php
+    fetch('generate_pdf.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(predictionData)
+    })
+    .then(response => response.text())
+    .then(html => {
+        // Buka hasil HTML laporan di tab baru
+        const tab = window.open('', '_blank');
+        tab.document.write(html);
+        tab.document.close();
+    })
+    .catch(err => {
+        alert('Gagal membuka laporan PDF: ' + err.message);
+    });
+}
+
+// ====== HAMBURGER SIDEBAR ======
+function openSidebar() {
+    document.getElementById('sidebar').classList.remove('-translate-x-full');
+    document.getElementById('sidebar-overlay').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+    document.getElementById('sidebar').classList.add('-translate-x-full');
+    document.getElementById('sidebar-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+</script>
 </body></html>
