@@ -5,8 +5,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from prediksi_sampah_surakarta import (
-    data_raw, preprocess, split_and_scale, tune, train,
-    hitung_metrik, importance, forecast_2026, SPLIT_IDX
+    muat_data, preprocess, split_and_scale, tune, train,
+    hitung_metrik, importance, forecast_2026, SPLIT_IDX, path
 )
 
 # Config optimasi memory
@@ -29,28 +29,35 @@ BULAN_MAP = {
 
 @st.cache_data(ttl=3600)
 def load_data():
-    df = pd.read_csv("dataset_sampah - DATASET FIX.csv")
+    # Menggunakan file lokal hanya untuk visualisasi komponen Dataset di aplikasi
+    df = pd.read_csv("dataset_sampah_-_DATASET_FIX.csv")
     df.columns = [c.replace("\n", " ").strip() for c in df.columns]
     df['Tahun'] = df['Tahun'].ffill()
-
-    # Kolom "Bulan" di konversi ke angka 1-12 supaya heatmap & groupby.
     df['Bulan'] = df['Bulan'].str.strip().str.lower().map(BULAN_MAP)
     return df
 
 @st.cache_resource(ttl=3600)
 def load_model():
-    df = preprocess(data_raw)
+    # Memanggil fungsi muat_data dengan argumen 'path' bawaan dari script utama
+    df_raw = muat_data(path)
+    df = preprocess(df_raw)
+    
     out = split_and_scale(df)
     X_train_s, X_test_s, y_train_s, y_test_s, y_train, y_test, _, _, scaler_X, scaler_y = out
+    
     best_params = tune(X_train_s, y_train_s)
     model, cv_r2 = train(X_train_s, y_train_s, best_params)
+    
     pred_train = scaler_y.inverse_transform(model.predict(X_train_s).reshape(-1,1)).ravel()
     pred_test  = scaler_y.inverse_transform(model.predict(X_test_s).reshape(-1,1)).ravel()
+    
     m_train = hitung_metrik(y_train, pred_train, "Train")
     m_test  = hitung_metrik(y_test, pred_test, "Test")
+    
     imp_df  = importance(model, X_test_s, scaler_y.transform(y_test.reshape(-1,1)).ravel())
-    pred_df = forecast_2026(df, model, scaler_X, scaler_y)
-    return df, model, cv_r2, y_train, y_test, pred_train, pred_test, m_train, m_test, imp_df, pred_df, scaler_X, scaler_y
+    pred_df_2026 = forecast_2026(df, model, scaler_X, scaler_y)
+    
+    return df, model, cv_r2, y_train, y_test, pred_train, pred_test, m_train, m_test, imp_df, pred_df_2026, scaler_X, scaler_y
 
 st.title("Prediksi Sampah Surakarta")
 st.markdown(
@@ -96,8 +103,6 @@ with st.expander("DATASET", expanded=True):
     st.subheader("Heatmap volume sampah per tahun & bulan")
     
     try:
-        
-        # Gunakan df langsung, pastikan Bulan & Tahun numeric
         df_heat = df.copy()
         df_heat["Bulan"] = pd.to_numeric(df_heat["Bulan"], errors='coerce')
         df_heat["Tahun"] = pd.to_numeric(df_heat["Tahun"], errors='coerce')
@@ -112,7 +117,6 @@ with st.expander("DATASET", expanded=True):
             )
             
             if not pivot.empty:
-                # Reindex kolom 1-12
                 pivot = pivot[[col for col in range(1, 13) if col in pivot.columns]]
                 
                 fig_heat = px.imshow(
@@ -168,7 +172,7 @@ st.divider()
 
 # Model & Prediksi Utama
 with st.expander("Hasil Analisis dan Prediksi", expanded=True):
-    df_model, model, cv_r2, y_train, y_test, pred_train, pred_test, m_train, m_test, imp_df, pred_df, scaler_X, scaler_y = load_model()
+    df_model, model, cv_r2, y_train, y_test, pred_train, pred_test, m_train, m_test, imp_df, pred_df_2026, scaler_X, scaler_y = load_model()
 
     st.subheader("Performa model")
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -261,7 +265,7 @@ with st.expander("Hasil Analisis dan Prediksi", expanded=True):
     fig_2026 = go.Figure()
     fig_2026.add_trace(go.Scatter(x=hist_tail["Tanggal"], y=hist_tail["Volume_Sampah"],
         mode="lines+markers", name="Historis (2024–2025)", line=dict(color="#185FA5")))
-    fig_2026.add_trace(go.Scatter(x=pred_df["Tanggal"], y=pred_df["Prediksi_Volume"],
+    fig_2026.add_trace(go.Scatter(x=pred_df_2026["Tanggal"], y=pred_df_2026["Prediksi_Volume"],
         mode="lines+markers", name="Prediksi 2026",
         line=dict(color="#3B6D11", dash="dash")))
     fig_2026.add_vline(x="2026-01-01", line_dash="dot", line_color="gray")
@@ -269,9 +273,9 @@ with st.expander("Hasil Analisis dan Prediksi", expanded=True):
         legend=dict(orientation="h", y=1.1), margin=dict(l=0, r=0, t=10, b=0))
     st.plotly_chart(fig_2026, use_container_width=True)
 
-    pred_df["Bulan_Nama"] = pred_df["Bulan"].apply(lambda x: bulan_nama[x-1])
+    pred_df_2026["Bulan_Nama"] = pred_df_2026["Bulan"].apply(lambda x: bulan_nama[x-1])
     st.dataframe(
-        pred_df[["Bulan_Nama","Prediksi_Volume"]].rename(
+        pred_df_2026[["Bulan_Nama","Prediksi_Volume"]].rename(
             columns={"Bulan_Nama":"Bulan","Prediksi_Volume":"Prediksi 2026 (ton)"}
         ).style.format({"Prediksi 2026 (ton)": "{:,.2f}"}),
         width='stretch', hide_index=True
