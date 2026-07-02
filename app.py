@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 
 from prediksi_sampah_surakarta import (
     muat_data, preprocess, split_and_scale, tune, train,
-    hitung_metrik, importance, forecast_2026, SPLIT_IDX, path
+    hitung_metrik, importance, forecast_2026, SPLIT_IDX
 )
 
 # Config optimasi memory
@@ -39,7 +39,7 @@ def load_data():
 @st.cache_resource(ttl=3600)
 def load_model():
     # Memanggil fungsi muat_data dengan argumen 'path' bawaan dari script utama
-    df_raw = muat_data(path)
+    df_raw = muat_data("dataset_sampah_-_DATASET_FIX.csv")
     df = preprocess(df_raw)
     
     out = split_and_scale(df)
