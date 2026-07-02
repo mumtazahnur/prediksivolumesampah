@@ -33,10 +33,8 @@ def load_data():
     df.columns = [c.replace("\n", " ").strip() for c in df.columns]
     df['Tahun'] = df['Tahun'].ffill()
 
-    # Kolom "Bulan" di CSV berisi nama bulan dalam teks (mis. "Januari"),
-    # bukan angka. Konversi ke angka 1-12 supaya heatmap & groupby musiman benar.
+    # Kolom "Bulan" di konversi ke angka 1-12 supaya heatmap & groupby.
     df['Bulan'] = df['Bulan'].str.strip().str.lower().map(BULAN_MAP)
-
     return df
 
 @st.cache_resource(ttl=3600)
@@ -62,7 +60,7 @@ st.markdown(
 
 st.divider()
 
-# ── Dataset ──
+# Dataset 
 with st.expander("DATASET", expanded=True):
     df = load_data()
     st.subheader("Dataset volume sampah")
@@ -168,7 +166,7 @@ with st.expander("DATASET", expanded=True):
 
 st.divider()
 
-# ── Model & Prediksi Utama ──
+# Model & Prediksi Utama
 with st.expander("Hasil Analisis dan Prediksi", expanded=True):
     df_model, model, cv_r2, y_train, y_test, pred_train, pred_test, m_train, m_test, imp_df, pred_df, scaler_X, scaler_y = load_model()
 
@@ -281,7 +279,7 @@ with st.expander("Hasil Analisis dan Prediksi", expanded=True):
 
 st.divider()
 
-# ── Input Prediksi ──
+# Input Prediksi 
 with st.expander("Input tahun prediksi", expanded=True):
     st.subheader("Input prediksi tahunan")
     st.caption(
